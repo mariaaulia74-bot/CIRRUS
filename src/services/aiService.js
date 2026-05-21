@@ -23,7 +23,7 @@ export const getAIOpinion = async (dataCuaca) => {
         
         // MENEMBAK API GEMINI MENGGUNAKAN MODEL TERBARU DEFAULT SDK (gemini-2.5-flash) 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash', // <-- Sudah diganti ke 2.5 biar tidak eror 404 lagi
+            model: 'gemini-2.5-flash', // 
             contents: promptText,
         });
             
