@@ -11,9 +11,9 @@ const ai = new GoogleGenAI({ apiKey: apiKeyGemini });
  */
 export const getAIOpinion = async (dataCuaca) => {
     try {
-        // Menyusun teks perintah (prompt) otomatis berdasarkan data cuaca asli [cite: 1, 24]
+        // Menyusun teks perintah (prompt) otomatis berdasarkan data cuaca asli
         const promptText = `
-        Kamu adalah asisten cuaca pintar untuk aplikasi CIRRUS di Kalimantan[cite: 1, 24].
+        Kamu adalah asisten cuaca pintar untuk aplikasi CIRRUS di Kalimantan.
         Berikan rekomendasi aktivitas singkat (maksimal 3 kalimat) yang santai, logis, dan ramah untuk user berdasarkan data berikut:
         - Kota : ${dataCuaca.kota}
         - Suhu : ${dataCuaca.suhu}
@@ -21,9 +21,9 @@ export const getAIOpinion = async (dataCuaca) => {
         - Kecepatan Angin : ${dataCuaca.kecepatanAngin}
         `;
         
-        // MENEMBAK API GEMINI MENGGUNAKAN MODEL TERBARU DEFAULT SDK (gemini-2.5-flash) 
+        // GUNAKAN GEMINI 2.0 FLASH (Model paling stabil & didukung penuh oleh SDK Baru)
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash', // 
+            model: 'gemini-2.0-flash', // <--- Ganti menjadi ini ya!
             contents: promptText,
         });
             

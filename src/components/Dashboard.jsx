@@ -62,36 +62,48 @@ export default function Dashboard() {
   const [aiSuggestion, setAiSuggestion] = useState('Sedang merumuskan saran terbaik dari Gemini AI...');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Efek otomatis: Tiap kali lokasi provinsi diganti, langsung tembak API & Gemini AI
+  /* ========================================================= */
+  /* ALUR PROSES DATA BACKEND & AI - SEHAT & ANTI LOOP         */
+  /* ========================================================= */
+
+  // EFEK 1: Hanya bertugas mengambil data cuaca mentah dari API Open-Meteo
   useEffect(() => {
-    const muatDataCuacaDanAI = async () => {
+    const ambilDataCuacaSatelit = async () => {
       setIsLoading(true);
-      setAiSuggestion('Gemini AI sedang membaca satelit cuaca...');
       try {
         const targetKota = dapatkanKotaDariProvinsi(currentLocation);
-        
-        // 1. Jalankan fungsi penarik cuaca buatanmu
         const dataCuaca = await fetchWeatherByCity(targetKota);
         setLiveWeather(dataCuaca);
-
-        // 2. Jalankan fungsi otak Gemini AI buatanmu
-        try {
-          const saranAI = await getAIOpinion(dataCuaca);
-          setAiSuggestion(saranAI);
-        } catch (aiErr) {
-          console.error("Gemini AI bermasalah/diblokir:", aiErr);
-          setAiSuggestion("Gagal memuat saran otomatis dari Gemini AI.");
-        }
       } catch (err) {
-        console.error("Gagal sinkronisasi data backend:", err);
-        setAiSuggestion("Gagal menyambungkan ke asisten pintar.");
+        console.error("Gagal menarik data stasiun cuaca:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    muatDataCuacaDanAI();
-  }, [currentLocation]);
+    ambilDataCuacaSatelit();
+  }, [currentLocation]); // Hanya terpicu jika wilayah provinsi diganti!
+
+  // EFEK 2: Hanya bertugas memanggil AI secara sekuensial (antre) jika data cuaca sudah VALID
+  useEffect(() => {
+    const ambilRekomendasiDariGemini = async () => {
+      // Cegah eksekusi jika data cuaca belum masuk ke state
+      if (!liveWeather) return; 
+
+      setAiSuggestion('Gemini AI sedang membaca satelit cuaca...');
+      try {
+        const saranTerbaru = await getAIOpinion(liveWeather);
+        setAiSuggestion(saranTerbaru);
+      } catch (aiErr) {
+        console.error("Koneksi API Gemini bermasalah:", aiErr);
+        setAiSuggestion("Gagal memuat saran aktivitas otomatis untuk saat ini.");
+      }
+    };
+
+    ambilRekomendasiDariGemini();
+  }, [liveWeather]); // Hanya berjalan TEPAT 1 KALI setelah liveWeather berubah dari null menjadi object
+
+  /* ========================================================= */
 
   return (
     <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
@@ -213,12 +225,6 @@ function KalenderView({ selectedDate, setSelectedDate }) {
 /* ========================================================= */
 function BerandaView({ currentLocation, openFilter, liveWeather, aiSuggestion, isLoading }) {
   const [activeTab, setActiveTab] = useState('7hari');
-
-  useEffect(() => {
-    console.log("PROVINSI AKTIF:", currentLocation);
-    console.log("DATA CUACA MASUK:", liveWeather);
-    console.log("SARAN AI MASUK:", aiSuggestion);
-  }, [currentLocation, liveWeather, aiSuggestion]);
 
   return (
     <div className="space-y-12 pb-20">
