@@ -1,30 +1,93 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 /* --- 1. IMPORT ASET MENU & CUACA UTAMA --- */
-import iconHome from './assets/home.svg';
-import iconCalendar from './assets/calendar.svg';
-import iconMap from './assets/map.svg';
-import iconWind from './assets/wind.svg';
-import iconSetting from './assets/setting.svg';
-import iconLogout from './assets/logout.svg';
-import weatherMain from './assets/weather-main.svg'; 
-import weatherRainSun from './assets/weather-rain-sun.svg';
-import weatherCloud from './assets/weather-cloud.svg';
-import weatherSunnyUmbrella from './assets/weather-sunny-umbrella.svg';
-import avatarBahlil from './assets/avatar-bahlil.svg';
+import iconHome from '../assets/home.svg';
+import iconCalendar from '../assets/calendar.svg';
+import iconMap from '../assets/map.svg';
+import iconWind from '../assets/wind.svg';
+import iconSetting from '../assets/setting.svg';
+import iconLogout from '../assets/logout.svg';
+import weatherMain from '../assets/weather-main.svg'; 
+import weatherRainSun from '../assets/weather-rain-sun.svg';
+import weatherCloud from '../assets/weather-cloud.svg';
+import weatherSunnyUmbrella from '../assets/weather-sunny-umbrella.svg';
+import avatarBahlil from '../assets/avatar-bahlil.svg';
 
 /* --- 2. IMPORT ASET KALENDER & JADWAL --- */
-import kalenderUtuh from './assets/kalender-utuh.svg'; 
-import iconUmbrella from './assets/icon-umbrella.svg';
-import iconCold from './assets/icon-cold.svg';
-import iconMask from './assets/icon-mask.svg';
-import iconNoodles from './assets/icon-noodles.svg';
-import iconNetflix from './assets/icon-netflix.svg';
+import kalenderUtuh from '../assets/kalender-utuh.svg'; 
+import iconUmbrella from '../assets/icon-umbrella.svg';
+import iconCold from '../assets/icon-cold.svg';
+import iconMask from '../assets/icon-mask.svg';
+import iconNoodles from '../assets/icon-noodles.svg';
+import iconNetflix from '../assets/icon-netflix.svg';
+
+/* --- 3. IMPORT CORE BACKEND BUATAN KAMU (JALUR PINTAS PASTI KETEMU) --- */
+import { fetchWeatherByCity } from '/src/services/weatherService';
+import { getAIOpinion } from '/src/services/aiService';
+
+// Fungsi pembantu untuk mencocokkan Filter Provinsi Diva ke Kota di backend kamu
+const dapatkanKotaDariProvinsi = (provinsi) => {
+  switch (provinsi) {
+    case 'KALIMANTAN SELATAN': return 'Banjarmasin';
+    case 'KALIMANTAN BARAT': return 'Pontianak';
+    case 'KALIMANTAN TIMUR': return 'Samarinda';
+    case 'KALIMANTAN TENGAH': return 'Palangkaraya';
+    case 'KALIMANTAN UTARA': return 'TanjungSelor';
+    default: return 'Banjarmasin';
+  }
+};
+
+// Fungsi penjelas kode cuaca Open-Meteo ke bahasa manusia biasa
+const tafsirkanKodeCuaca = (code) => {
+  if (code === 0) return 'Cerah';
+  if ([1, 2, 3].includes(code)) return 'Cerah Berawan';
+  if ([45, 48].includes(code)) return 'Berkabut';
+  if ([51, 53, 55, 61, 63, 65].includes(code)) return 'Hujan Ringan';
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'Hujan Salju / Es';
+  if ([80, 81, 82, 95, 96, 99].includes(code)) return 'Hujan Lebat / Petir';
+  return 'Berawan';
+};
 
 export default function Dashboard() {
-  const [activeMenu, setActiveMenu] = useState('kalender'); 
+  const [activeMenu, setActiveMenu] = useState('beranda'); 
   const [currentLocation, setCurrentLocation] = useState('KALIMANTAN SELATAN'); 
   const [isFilterOpen, setIsFilterOpen] = useState(false); 
+
+  /* --- STATE MANAGEMENT UTK DATA LIVE --- */
+  const [liveWeather, setLiveWeather] = useState(null);
+  const [aiSuggestion, setAiSuggestion] = useState('Sedang merumuskan saran terbaik dari Gemini AI...');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Efek otomatis: Tiap kali lokasi provinsi diganti, langsung tembak API & Gemini AI
+  useEffect(() => {
+    const muatDataCuacaDanAI = async () => {
+      setIsLoading(true);
+      setAiSuggestion('Gemini AI sedang membaca satelit cuaca...');
+      try {
+        const targetKota = dapatkanKotaDariProvinsi(currentLocation);
+        
+        // 1. Jalankan fungsi penarik cuaca buatanmu
+        const dataCuaca = await fetchWeatherByCity(targetKota);
+        setLiveWeather(dataCuaca);
+
+        // 2. Jalankan fungsi otak Gemini AI buatanmu secara aman agar tidak menyumbat loading utama
+        try {
+          const saranAI = await getAIOpinion(dataCuaca);
+          setAiSuggestion(saranAI);
+        } catch (aiErr) {
+          console.error("Gemini AI bermasalah/diblokir:", aiErr);
+          setAiSuggestion("Gagal memuat saran otomatis dari Gemini AI.");
+        }
+      } catch (err) {
+        console.error("Gagal sinkronisasi data backend:", err);
+        setAiSuggestion("Gagal menyambungkan ke asisten pintar.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    muatDataCuacaDanAI();
+  }, [currentLocation]);
 
   return (
     <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
@@ -75,7 +138,13 @@ export default function Dashboard() {
 
         <div className="flex-1 overflow-y-auto p-10 no-scrollbar">
           {activeMenu === 'beranda' && (
-             <BerandaView currentLocation={currentLocation} openFilter={() => setIsFilterOpen(true)} />
+             <BerandaView 
+               currentLocation={currentLocation} 
+               openFilter={() => setIsFilterOpen(true)} 
+               liveWeather={liveWeather}
+               aiSuggestion={aiSuggestion}
+               isLoading={isLoading}
+             />
           )}
           {activeMenu === 'kalender' && (
              <KalenderView />
@@ -92,31 +161,24 @@ export default function Dashboard() {
 }
 
 /* ========================================================= */
-/* SUB-KOMPONEN 1: KALENDER                                  */
+/* SUB-KOMPONEN 1: KALENDER (Tetap murni dari Diva)           */
 /* ========================================================= */
 function KalenderView() {
   return (
     <div className="max-w-5xl mx-auto space-y-12 pb-20">
-      
-      {/* Header Kalender */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-widest text-[#003366]">Kalender</h1>
-          <p className="text-xs font-bold opacity-40 uppercase mt-1 text-[#003366]">Minggu, 11 April 2026, 21:30</p>
+          <p className="text-xs font-bold opacity-40 uppercase mt-1 text-[#003366]">Kamis, 21 Mei 2026, 12:37</p>
         </div>
         <button className="text-2xl opacity-40 hover:opacity-100 transition cursor-pointer">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
         </button>
       </div>
 
-      {/* WIDGET KALENDER UTUH */}
       <div className="flex justify-center items-center py-6">
         {kalenderUtuh ? (
-          <img 
-            src={kalenderUtuh} 
-            alt="Kalender Bulan Ini" 
-            className="w-full max-w-3xl h-auto drop-shadow-2xl animate-float" 
-          />
+          <img src={kalenderUtuh} alt="Kalender Bulan Ini" className="w-full max-w-3xl h-auto drop-shadow-2xl animate-float" />
         ) : (
           <div className="bg-slate-200 w-full max-w-3xl h-100 rounded-[40px] flex items-center justify-center text-slate-400 font-bold">
             (Gambar Kalender Utuh Belum Dimasukkan)
@@ -124,7 +186,6 @@ function KalenderView() {
         )}
       </div>
 
-      {/* MY SCHEDULE */}
       <div>
         <h2 className="text-lg font-black text-[#003366] mb-4 uppercase tracking-widest">My Schedule</h2>
         <div className="space-y-4">
@@ -135,7 +196,6 @@ function KalenderView() {
         </div>
       </div>
 
-      {/* SARAN HARIAN */}
       <div className="pt-6">
         <h2 className="text-lg font-black text-[#003366] mb-4 uppercase tracking-widest">Saran Harian</h2>
         <div className="space-y-4">
@@ -144,45 +204,77 @@ function KalenderView() {
           <SuggestionCard icon={iconNetflix} fallbackEmoji="🎬" text="Hari ini cocok buat nonton Film" time="21:00" active={true} />
         </div>
       </div>
-
     </div>
   );
 }
 
 /* ========================================================= */
-/* SUB-KOMPONEN 2: BERANDA                                   */
+/* SUB-KOMPONEN 2: BERANDA (DI-KONEKSIKAN KE BACKEND KAMU)    */
 /* ========================================================= */
-function BerandaView({ currentLocation, openFilter }) {
+function BerandaView({ currentLocation, openFilter, liveWeather, aiSuggestion, isLoading }) {
   const [activeTab, setActiveTab] = useState('7hari');
+
+  useEffect(() => {
+    console.log("PROVINSI AKTIF:", currentLocation);
+    console.log("DATA CUACA MASUK:", liveWeather);
+    console.log("SARAN AI MASUK:", aiSuggestion);
+  }, [currentLocation, liveWeather, aiSuggestion]);
 
   return (
     <div className="space-y-12 pb-20">
       <section>
         <div className="flex justify-between items-end mb-6 px-2">
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-widest text-[#4A86CC]">{currentLocation}</h1>
-            <p className="text-xs font-bold opacity-30 uppercase mt-1">Minggu, 11 April 2026, 21:30</p>
+          <div onClick={openFilter} className="cursor-pointer group">
+            <h1 className="text-3xl font-black uppercase tracking-widest text-[#4A86CC] group-hover:text-[#2C5282] transition-colors">
+              {currentLocation} <span className="text-lg opacity-50">▼</span>
+            </h1>
+            <p className="text-xs font-bold opacity-30 uppercase mt-1">Kamis, 21 Mei 2026, 12:37 (Klik untuk ganti wilayah)</p>
           </div>
           <button onClick={openFilter} className="flex items-center gap-2 bg-white/60 hover:bg-white backdrop-blur-md border border-white px-5 py-2.5 rounded-xl font-black text-sm text-[#4A86CC] uppercase tracking-widest shadow-sm cursor-pointer">
-            <span>⚙️</span> Filter
+            <span>🗺️</span> Filter
           </button>
-        </div>
-        <div className="relative bg-linear-to-r from-[#A4D8FB]/90 to-[#DDEEFE]/60 backdrop-blur-2xl rounded-[40px] border border-white p-12 shadow-2xl flex justify-between items-center overflow-hidden min-h-80">
+        </div>  
+        
+        {/* KOTAK INDUK CUACA UTAMA */}
+        <div className="relative bg-linear-to-r from-[#A4D8FB]/90 to-[#DDEEFE]/60 backdrop-blur-2xl rounded-[40px] border border-white p-12 shadow-2xl flex flex-col md:flex-row justify-between items-center overflow-hidden min-h-80 w-full mb-6">
           <div className="absolute right-0 top-0 bottom-0 w-4 bg-[#4A86CC] opacity-80"></div>
-          <div className="flex items-center gap-10 shrink-0">
+          
+          <div className="flex items-center gap-10 shrink-0 w-full md:w-auto mr-4">
             <img src={weatherMain} alt="" className="w-64 md:w-80 h-auto animate-float drop-shadow-2xl" />
             <div className="h-36 w-0.5 bg-[#003366]/10 mx-4"></div>
-            <div>
-              <h2 className="text-xl font-black opacity-60 uppercase tracking-widest mb-1 leading-none">Keadaan Cuaca Sekarang</h2>
+            
+            {/* LOGIKA DATA LIVE SATELIT CUACA */}
+            <div className="flex-1">
+              <h2 className="text-xl font-black opacity-60 uppercase tracking-widest mb-1 leading-none">
+                {isLoading ? 'Menghubungkan ke Stasiun Cuaca...' : 'Keadaan Cuaca Sekarang'}
+              </h2>
               <div className="flex items-start">
-                <span className="text-[120px] font-black leading-none tracking-tighter">29°</span>
-                <div className="mt-8 ml-4"><span className="text-2xl font-bold opacity-70 block leading-none">Hujan Ringan</span></div>
+                <span className="text-[100px] md:text-[120px] font-black leading-none tracking-tighter">
+                  {liveWeather ? liveWeather.suhu : '...'}
+                </span>
+                <div className="mt-8 ml-4">
+                  <span className="text-2xl font-bold opacity-70 block leading-none text-[#2C5282]">
+                    {liveWeather ? tafsirkanKodeCuaca(liveWeather.kodeCuaca) : 'Loading...'}
+                  </span>
+                  {liveWeather && (
+                    <span className="text-xs font-medium opacity-50 block mt-2">
+                      💨 Angin: {liveWeather.kecepatanAngin} | 💧 Lembap: {liveWeather.kelembapan}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-3 self-end mb-2">
-            <div className="bg-[#55ACEE] text-white px-6 py-3 rounded-full text-[11px] font-bold shadow-lg">👋 Hari ini cocok buat nyantai di rumah</div>
-            <div className="bg-[#55ACEE]/80 text-white px-6 py-3 rounded-full text-[11px] font-bold shadow-lg">📋 Hari ini pukul 4 sore check up mata</div>
+        </div>
+
+        {/* KOTAK REKOMENDASI GEMINI AI (SUDAH DIGESER KE BAWAH AGAR TIDAK TERPOTONG) */}
+        <div className="w-full mt-4 z-10">
+          <div className="bg-[#2C5282] text-white p-6 rounded-[25px] text-sm font-semibold shadow-xl border border-white/20 leading-relaxed w-full text-left">
+            <div className="flex items-center gap-2 mb-2 opacity-70">
+              <span className="text-xl">🤖</span>
+              <span className="font-black text-xs uppercase tracking-widest text-[#A4D8FB]">Gemini AI Smart Assistant</span>
+            </div>
+            <p className="italic text-base">"{aiSuggestion}"</p>
           </div>
         </div>
       </section>
@@ -191,12 +283,12 @@ function BerandaView({ currentLocation, openFilter }) {
         <div className="space-y-6">
           <h3 className="font-black uppercase tracking-widest opacity-40 text-sm px-2">Prakiraan Per Jam</h3>
           <div className="bg-[#DDEEFE]/60 rounded-[35px] p-2 flex justify-between overflow-x-auto no-scrollbar gap-4">
-            <HourCard time="18:00" temp="29°" icon={weatherRainSun} active />
-            <HourCard time="19:00" temp="25°" icon={weatherRainSun} />
-            <HourCard time="20:00" temp="20°" icon={weatherRainSun} />
-            <HourCard time="21:00" temp="20°" icon={weatherRainSun} />
-            <HourCard time="22:00" temp="21°" icon={weatherRainSun} />
-            <HourCard time="23:00" temp="35°" icon={weatherSunnyUmbrella} />
+            <HourCard time="12:00" temp={liveWeather ? liveWeather.suhu : '29°'} icon={weatherRainSun} active />
+            <HourCard time="13:00" temp="30°" icon={weatherCloud} />
+            <HourCard time="14:00" temp="31°" icon={weatherSunnyUmbrella} />
+            <HourCard time="15:00" temp="28°" icon={weatherRainSun} />
+            <HourCard time="16:00" temp="27°" icon={weatherRainSun} />
+            <HourCard time="17:00" temp="27°" icon={weatherCloud} />
           </div>
         </div>
 
@@ -234,9 +326,8 @@ function BerandaView({ currentLocation, openFilter }) {
 }
 
 /* ========================================================= */
-/* KOMPONEN PENDUKUNG                                        */
+/* KOMPONEN PENDUKUNG (Tetap murni dari Diva)                 */
 /* ========================================================= */
-
 function NavItem({ icon, label, active = false, onClick }) {
   return (
     <div onClick={onClick} className={`flex items-center gap-5 px-6 py-4 rounded-2xl font-black transition cursor-pointer ${active ? 'bg-[#55ACEE] text-white shadow-xl shadow-blue-200' : 'text-[#003366] opacity-30 hover:opacity-100 hover:bg-white/40'}`}>
@@ -248,7 +339,6 @@ function NavItem({ icon, label, active = false, onClick }) {
 
 function ScheduleCard({ icon, fallbackEmoji, text, highlight, location, time, active }) {
   const [isOn, setIsOn] = useState(active);
-
   return (
     <div className="flex justify-between items-center bg-white p-5 px-8 rounded-[25px] shadow-sm hover:shadow-md transition-shadow border border-slate-100 group">
       <div className="flex items-center gap-6">
@@ -273,7 +363,6 @@ function ScheduleCard({ icon, fallbackEmoji, text, highlight, location, time, ac
 
 function SuggestionCard({ icon, fallbackEmoji, text, time, active }) {
   const [isOn, setIsOn] = useState(active);
-
   return (
     <div className="flex justify-between items-center bg-white p-5 px-8 rounded-[25px] shadow-sm hover:shadow-md transition-shadow border border-slate-100 group">
       <div className="flex items-center gap-6">
