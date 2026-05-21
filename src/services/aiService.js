@@ -1,6 +1,9 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey:'AIzaSyAb4uKetHI4OcpJ8mAyGWqu6zPG9PgHHTA' });
+// Pastikan tulisannya 'import.meta.env.VITE_GEMINI_API_KEY'
+const apiKeyGemini = import.meta.env.VITE_GEMINI_API_KEY;
+
+const ai = new GoogleGenAI({ apiKey: apiKeyGemini });
 
 /**
  * Fungsi untuk meminta rekomendasi aktivitas ke gemini berdasarkan data cuaca CIRRUS

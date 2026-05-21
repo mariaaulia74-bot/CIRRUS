@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Calendar from 'react-calendar';     
+import 'react-calendar/dist/Calendar.css'; 
 
 /* --- 1. IMPORT ASET MENU & CUACA UTAMA --- */
 import iconHome from '../assets/home.svg';
@@ -13,19 +15,18 @@ import weatherCloud from '../assets/weather-cloud.svg';
 import weatherSunnyUmbrella from '../assets/weather-sunny-umbrella.svg';
 import avatarBahlil from '../assets/avatar-bahlil.svg';
 
-/* --- 2. IMPORT ASET KALENDER & JADWAL --- */
-import kalenderUtuh from '../assets/kalender-utuh.svg'; 
+/* --- 2. IMPORT ASET JADWAL --- */
 import iconUmbrella from '../assets/icon-umbrella.svg';
 import iconCold from '../assets/icon-cold.svg';
 import iconMask from '../assets/icon-mask.svg';
 import iconNoodles from '../assets/icon-noodles.svg';
 import iconNetflix from '../assets/icon-netflix.svg';
 
-/* --- 3. IMPORT CORE BACKEND BUATAN KAMU (JALUR PINTAS PASTI KETEMU) --- */
+/* --- 3. IMPORT CORE BACKEND --- */
 import { fetchWeatherByCity } from '/src/services/weatherService';
 import { getAIOpinion } from '/src/services/aiService';
 
-// Fungsi pembantu untuk mencocokkan Filter Provinsi Diva ke Kota di backend kamu
+// Fungsi pembantu untuk mencocokkan Filter Provinsi ke Kota di backend kamu
 const dapatkanKotaDariProvinsi = (provinsi) => {
   switch (provinsi) {
     case 'KALIMANTAN SELATAN': return 'Banjarmasin';
@@ -52,6 +53,9 @@ export default function Dashboard() {
   const [activeMenu, setActiveMenu] = useState('beranda'); 
   const [currentLocation, setCurrentLocation] = useState('KALIMANTAN SELATAN'); 
   const [isFilterOpen, setIsFilterOpen] = useState(false); 
+  
+  // State Kalender dipindahkan ke sini agar bisa diakses oleh sub-komponen jika dibutuhkan
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   /* --- STATE MANAGEMENT UTK DATA LIVE --- */
   const [liveWeather, setLiveWeather] = useState(null);
@@ -70,7 +74,7 @@ export default function Dashboard() {
         const dataCuaca = await fetchWeatherByCity(targetKota);
         setLiveWeather(dataCuaca);
 
-        // 2. Jalankan fungsi otak Gemini AI buatanmu secara aman agar tidak menyumbat loading utama
+        // 2. Jalankan fungsi otak Gemini AI buatanmu
         try {
           const saranAI = await getAIOpinion(dataCuaca);
           setAiSuggestion(saranAI);
@@ -147,7 +151,7 @@ export default function Dashboard() {
              />
           )}
           {activeMenu === 'kalender' && (
-             <KalenderView />
+             <KalenderView selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
           )}
         </div>
       </main>
@@ -161,9 +165,9 @@ export default function Dashboard() {
 }
 
 /* ========================================================= */
-/* SUB-KOMPONEN 1: KALENDER (Tetap murni dari Diva)           */
+/* SUB-KOMPONEN 1: KALENDER                                  */
 /* ========================================================= */
-function KalenderView() {
+function KalenderView({ selectedDate, setSelectedDate }) {
   return (
     <div className="max-w-5xl mx-auto space-y-12 pb-20">
       <div className="flex justify-between items-start mb-6">
@@ -177,13 +181,9 @@ function KalenderView() {
       </div>
 
       <div className="flex justify-center items-center py-6">
-        {kalenderUtuh ? (
-          <img src={kalenderUtuh} alt="Kalender Bulan Ini" className="w-full max-w-3xl h-auto drop-shadow-2xl animate-float" />
-        ) : (
-          <div className="bg-slate-200 w-full max-w-3xl h-100 rounded-[40px] flex items-center justify-center text-slate-400 font-bold">
-            (Gambar Kalender Utuh Belum Dimasukkan)
-          </div>
-        )}
+        <div className="text-slate-800 custom-cirrus-calendar w-full max-w-3xl drop-shadow-2xl animate-float">
+          <Calendar onChange={setSelectedDate} value={selectedDate} />
+        </div>
       </div>
 
       <div>
@@ -209,7 +209,7 @@ function KalenderView() {
 }
 
 /* ========================================================= */
-/* SUB-KOMPONEN 2: BERANDA (DI-KONEKSIKAN KE BACKEND KAMU)    */
+/* SUB-KOMPONEN 2: BERANDA                                   */
 /* ========================================================= */
 function BerandaView({ currentLocation, openFilter, liveWeather, aiSuggestion, isLoading }) {
   const [activeTab, setActiveTab] = useState('7hari');
@@ -267,7 +267,7 @@ function BerandaView({ currentLocation, openFilter, liveWeather, aiSuggestion, i
           </div>
         </div>
 
-        {/* KOTAK REKOMENDASI GEMINI AI (SUDAH DIGESER KE BAWAH AGAR TIDAK TERPOTONG) */}
+        {/* KOTAK REKOMENDASI GEMINI AI */}
         <div className="w-full mt-4 z-10">
           <div className="bg-[#2C5282] text-white p-6 rounded-[25px] text-sm font-semibold shadow-xl border border-white/20 leading-relaxed w-full text-left">
             <div className="flex items-center gap-2 mb-2 opacity-70">
@@ -326,7 +326,7 @@ function BerandaView({ currentLocation, openFilter, liveWeather, aiSuggestion, i
 }
 
 /* ========================================================= */
-/* KOMPONEN PENDUKUNG (Tetap murni dari Diva)                 */
+/* KOMPONEN PENDUKUNG MURNI                                  */
 /* ========================================================= */
 function NavItem({ icon, label, active = false, onClick }) {
   return (
