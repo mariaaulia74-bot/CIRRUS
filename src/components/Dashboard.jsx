@@ -15,6 +15,22 @@ import weatherCloud from '../assets/weather-cloud.svg';
 import weatherSunnyUmbrella from '../assets/weather-sunny-umbrella.svg';
 import avatarBahlil from '../assets/avatar-bahlil.svg';
 
+/* --- IMPORT TAMBAHAN UNTUK PETA LEAFLET --- */
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Perbaikan bug gambar icon marker di React + Vite
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 /* --- 2. IMPORT ASET JADWAL --- */
 import iconUmbrella from '../assets/icon-umbrella.svg';
 import iconCold from '../assets/icon-cold.svg';
@@ -84,26 +100,25 @@ export default function Dashboard() {
     ambilDataCuacaSatelit();
   }, [currentLocation]); // Hanya terpicu jika wilayah provinsi diganti!
 
-  // EFEK 2: Hanya bertugas memanggil AI secara sekuensial (antre) jika data cuaca sudah VALID
   useEffect(() => {
-    const ambilRekomendasiDariGemini = async () => {
-      // Cegah eksekusi jika data cuaca belum masuk ke state
-      if (!liveWeather) return; 
+  const ambilRekomendasiDariGemini = async () => {
+    // 1. Cegah eksekusi jika data cuaca belum ada
+    if (!liveWeather || !liveWeather.name) return; 
 
-      setAiSuggestion('Gemini AI sedang membaca satelit cuaca...');
-      try {
-        const saranTerbaru = await getAIOpinion(liveWeather);
-        setAiSuggestion(saranTerbaru);
-      } catch (aiErr) {
-        console.error("Koneksi API Gemini bermasalah:", aiErr);
-        setAiSuggestion("Gagal memuat saran aktivitas otomatis untuk saat ini.");
-      }
-    };
+    setAiSuggestion('Gemini AI sedang membaca satelit cuaca...');
+    try {
+      const saranTerbaru = await getAIOpinion(liveWeather);
+      setAiSuggestion(saranTerbaru);
+    } catch (aiErr) {
+      console.error("Koneksi API Gemini bermasalah:", aiErr);
+      setAiSuggestion("Gagal memuat saran aktivitas otomatis untuk saat ini.");
+    }
+  };
 
-    ambilRekomendasiDariGemini();
-  }, [liveWeather]); // Hanya berjalan TEPAT 1 KALI setelah liveWeather berubah dari null menjadi object
-
-  /* ========================================================= */
+  ambilRekomendasiDariGemini();
+  
+  // 2. KUNCI DI SINI: Gunakan string nama kota, bukan object!
+}, [liveWeather?.name]);
 
   return (
     <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
@@ -153,7 +168,7 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-10 no-scrollbar">
-          {activeMenu === 'beranda' && (
+         {activeMenu === 'beranda' && (
              <BerandaView 
                currentLocation={currentLocation} 
                openFilter={() => setIsFilterOpen(true)} 
@@ -165,6 +180,12 @@ export default function Dashboard() {
           {activeMenu === 'kalender' && (
              <KalenderView selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
           )}
+          
+          {/* --- BAGIAN PETA YANG SUDAH DISELIPKAN DENGAN AMAN --- */}
+          {activeMenu === 'peta' && (
+             <PetaView />
+          )}
+          
         </div>
       </main>
 
@@ -432,6 +453,83 @@ function DayRow({ label, temp, icon }) {
       <div className="flex items-center gap-8">
         <img src={icon} alt="" className="w-10 h-10 object-contain" />
         <span className="font-black text-sm text-[#2C5282] opacity-60 group-hover:opacity-100">{temp}</span>
+      </div>
+    </div>
+  );
+}
+
+/* --- 3. KOMPONEN HALAMAN PETA ASLI INTERAKTIF --- */
+function PetaView() {
+  // Koordinat tengah untuk area Kalimantan Selatan agar pas di layar
+  const posisiKalsel = [-3.3, 114.8]; 
+
+  // Data tiruan kota untuk penanda di peta & list kartu di bawahnya
+  const dataWilayah = [
+    { nama: 'BANJARMASIN', koordinat: [-3.316694, 114.590111], suhu: '32°C', kondisi: 'Cerah Berawan', waktu: '14:00' },
+    { nama: 'BANJARBARU', koordinat: [-3.442344, 114.830116], suhu: '32°C', kondisi: 'Cerah Berawan', waktu: '14:00' },
+    { nama: 'MARTAPURA', koordinat: [-3.416667, 114.850000], suhu: '35°C', kondisi: 'Cerah Berawan', waktu: '14:00' }
+  ];
+
+  return (
+    <div className="w-full space-y-6">
+      {/* HEADER MENU PETA */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-wider">PETA</h1>
+          <p className="text-xs font-bold text-slate-400 uppercase mt-1">Minggu, 11 April 2026, 21:30</p>
+        </div>
+        <button className="text-slate-700 hover:text-blue-600 transition cursor-pointer">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+          </svg>
+        </button>
+      </div>
+
+      {/* BOX PETA ASLI (LEAFLET MAP CONTAINER) */}
+      <div className="w-full h-[450px] bg-white rounded-[32px] overflow-hidden shadow-md border-4 border-white relative">
+        <MapContainer center={posisiKalsel} zoom={9} className="w-full h-full z-10">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          />
+          
+          {/* Loop untuk menyebar PIN marker di atas peta */}
+          {dataWilayah.map((wilayah, index) => (
+            <Marker key={index} position={wilayah.koordinat}>
+              <Popup>
+                <div className="font-sans p-1 text-slate-800">
+                  <h4 className="font-black text-sm text-blue-600">{wilayah.nama}</h4>
+                  <p className="text-xs font-bold mt-1">Suhu: <span className="text-orange-500">{wilayah.suhu}</span></p>
+                  <p className="text-[10px] text-gray-500">{wilayah.kondisi}</p>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+
+        {/* LEGEND INDIKATOR WARNA SUHU */}
+        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm py-2 px-4 rounded-xl shadow-md z-[1000] flex items-center gap-4 text-xs font-bold text-slate-600">
+          <div className="flex items-center gap-1.5"><span className="w-6 h-1.5 bg-blue-500 rounded-full"></span> Dingin</div>
+          <div className="flex items-center gap-1.5"><span className="w-6 h-1.5 bg-yellow-400 rounded-full"></span> Hangat</div>
+          <div className="flex items-center gap-1.5"><span className="w-6 h-1.5 bg-red-500 rounded-full"></span> Panas</div>
+        </div>
+      </div>
+
+      <hr className="border-slate-200/60 my-2" />
+
+      {/* DAFTAR LIST KARTU KOTA DI BAWAH PETA */}
+      <div className="space-y-3">
+        {dataWilayah.map((wilayah, index) => (
+          <div key={index} className="flex justify-between items-center bg-white p-4 px-6 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex items-center gap-4">
+              <span className="text-2xl">🌤️</span>
+              <span className="font-extrabold text-sm text-blue-950 tracking-wide">{wilayah.nama}</span>
+            </div>
+            <div className="font-black text-blue-950 tracking-wide text-sm opacity-90">
+              {wilayah.waktu} | <span className="text-blue-600">{wilayah.suhu}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
