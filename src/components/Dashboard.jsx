@@ -100,9 +100,10 @@ export default function Dashboard() {
     ambilDataCuacaSatelit();
   }, [currentLocation]); // Hanya terpicu jika wilayah provinsi diganti!
 
+  // EFEK 2: Memanggil AI secara berurutan tanpa double trigger
   useEffect(() => {
     const ambilRekomendasiDariGemini = async () => {
-      if (!liveWeather || !liveWeather.name) return; 
+      if (!liveWeather) return; 
 
       setAiSuggestion('Gemini AI sedang membaca satelit cuaca...');
       try {
@@ -115,7 +116,7 @@ export default function Dashboard() {
     };
 
     ambilRekomendasiDariGemini();
-  }, [liveWeather?.name]);
+  }, [liveWeather]);
 
   return (
     <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
@@ -134,15 +135,20 @@ export default function Dashboard() {
           <NavItem icon={iconHome} label="Beranda" active={activeMenu === 'beranda'} onClick={() => setActiveMenu('beranda')} />
           <NavItem icon={iconCalendar} label="Kalender" active={activeMenu === 'kalender'} onClick={() => setActiveMenu('kalender')} />
           <NavItem icon={iconMap} label="Peta" active={activeMenu === 'peta'} onClick={() => setActiveMenu('peta')} />
-          {/* PERBAIKAN: Target diubah ke 'kualitas udara' agar match dengan kondisional kontent */}
           <NavItem icon={iconWind} label="Kualitas Udara" active={activeMenu === 'kualitas udara'} onClick={() => setActiveMenu('kualitas udara')} />
         </nav>
 
         <div className="space-y-6 pt-10 border-t border-slate-200">
-          <button className="flex items-center gap-5 px-4 font-bold text-sm opacity-40 hover:opacity-100 transition cursor-pointer">
+          {/* PERBAIKAN: Tombol Setting sekarang interaktif mengganti state activeMenu */}
+          <button 
+            onClick={() => setActiveMenu('setting')}
+            className={`w-full flex items-center gap-5 px-4 font-bold text-sm transition cursor-pointer ${
+              activeMenu === 'setting' ? 'text-blue-500 opacity-100 scale-105' : 'opacity-40 hover:opacity-100'
+            }`}
+          >
             <img src={iconSetting} alt="" className="w-6 h-6" /> Setting
           </button>
-          <button className="flex items-center gap-5 px-4 font-bold text-sm text-[#E74C3C] hover:scale-105 transition cursor-pointer">
+          <button className="w-full flex items-center gap-5 px-4 font-bold text-sm text-[#E74C3C] hover:scale-105 transition cursor-pointer">
             <img src={iconLogout} alt="" className="w-6 h-6" /> Log Out
           </button>
         </div>
@@ -181,9 +187,12 @@ export default function Dashboard() {
           {activeMenu === 'peta' && (
               <PetaView />
           )}
-          {/* PERBAIKAN: Menambahkan render halaman Kualitas Udara */}
           {activeMenu === 'kualitas udara' && (
               <KualitasUdaraView />
+          )}
+          {/* PERBAIKAN: Menambahkan render view untuk komponen Setting buatan Diva */}
+          {activeMenu === 'setting' && (
+              <SettingView />
           )}
         </div>
       </main>
@@ -461,10 +470,7 @@ function DayRow({ label, temp, icon }) {
 /* SUB-KOMPONEN 3: PETA ASLI INTERAKTIF                      */
 /* ========================================================= */
 function PetaView() {
-  // Koordinat tengah untuk memposisikan seluruh pulau Kalimantan di Map
   const posisiBorneo = [-0.5, 114.5]; 
-  
-  // Data representatif untuk kota-kota besar di setiap Provinsi Kalimantan
   const dataWilayah = [
     { nama: 'BANJARMASIN (KALSEL)', koordinat: [-3.3167, 114.5901], suhu: '32°C', kondisi: 'Cerah Berawan', waktu: '14:00' },
     { nama: 'PALANGKARAYA (KALTENG)', koordinat: [-2.2084, 113.9181], suhu: '31°C', kondisi: 'Hujan Ringan', waktu: '14:00' },
@@ -480,11 +486,6 @@ function PetaView() {
           <h1 className="text-3xl font-black text-slate-800 tracking-wider">PETA SEBARAN</h1>
           <p className="text-xs font-bold text-slate-400 uppercase mt-1">Jumat, 22 Mei 2026, 15:20</p>
         </div>
-        <button className="text-slate-700 hover:text-blue-600 transition cursor-pointer">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-          </svg>
-        </button>
       </div>
 
       <div className="w-full h-112.5 bg-white rounded-4xl overflow-hidden shadow-md border-4 border-white relative">
@@ -494,7 +495,7 @@ function PetaView() {
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
           {dataWilayah.map((wilayah, index) => (
-            <Marker key={index} position={wilayah.coordinates || wilayah.koordinat}>
+            <Marker key={index} position={wilayah.koordinat}>
               <Popup>
                 <div className="font-sans p-1 text-slate-800">
                   <h4 className="font-black text-sm text-blue-600">{wilayah.nama}</h4>
@@ -505,12 +506,6 @@ function PetaView() {
             </Marker>
           ))}
         </MapContainer>
-
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm py-2 px-4 rounded-xl shadow-md z-1000 flex items-center gap-4 text-xs font-bold text-slate-600">
-          <div className="flex items-center gap-1.5"><span className="w-6 h-1.5 bg-blue-500 rounded-full"></span> Dingin</div>
-          <div className="flex items-center gap-1.5"><span className="w-6 h-1.5 bg-yellow-400 rounded-full"></span> Hangat</div>
-          <div className="flex items-center gap-1.5"><span className="w-6 h-1.5 bg-red-500 rounded-full"></span> Panas</div>
-        </div>
       </div>
 
       <hr className="border-slate-200/60 my-2" />
@@ -538,10 +533,8 @@ function PetaView() {
 /* SUB-KOMPONEN 4: KUALITAS UDARA (SLICING FRONT-END MURNI)   */
 /* ========================================================= */
 function KualitasUdaraView() {
-  // State filter Provinsi aktif
-  const [provinsiAktif, setProvinsiAktif] = React.useState('Kalsel');
+  const [provinsiAktif, setProvinsiAktif] = useState('Kalsel');
 
-  // Master data kualitas udara per Provinsi
   const dataProvinsi = {
     Kalsel: {
       nama: "Banjarmasin (Kalimantan Selatan)",
@@ -580,7 +573,7 @@ function KualitasUdaraView() {
         { label: "PM2.5", nilai: "37", unit: "µg/m³", status: "Tidak Sehat", icon: "😷" },
         { label: "PM10", nilai: "65", unit: "µg/m³", status: "Moderat", icon: "😷" },
         { label: "NO2", nilai: "58", unit: "µg/m³", status: "Moderat", icon: "🛵" },
-        { label: "O3", stroke: "82", nilai: "82", unit: "µg/m³", status: "Moderat", icon: "🧴" }
+        { label: "O3", nilai: "82", unit: "µg/m³", status: "Moderat", icon: "🧴" }
       ]
     },
     Kaltara: {
@@ -613,9 +606,7 @@ function KualitasUdaraView() {
               key={prov}
               onClick={() => setProvinsiAktif(prov)}
               className={`px-4 py-1.5 rounded-xl text-xs font-black tracking-wider transition-all cursor-pointer ${
-                provinsiAktif === prov
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-600 hover:bg-slate-200'
+                provinsiAktif === prov ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-200'
               }`}
             >
               {prov.toUpperCase()}
@@ -705,35 +696,19 @@ function SettingView() {
   const [cuacaEkstrem, setCuacaEkstrem] = useState(true);
   const [activeFrame, setActiveFrame] = useState(null);
 
-  // Trik otomatis: Saat komponen ini dimuat, kita paksa kontainer utama menampilkan section ini
-  React.useEffect(() => {
-    const mainContent = document.querySelector('main');
-    if (mainContent) {
-      mainContent.scrollTop = 0;
-    }
-  }, []);
-
+  // MENYEMBUHKAN VIEW BLANK DENGAN STATEMENT RETURN YANG UTUH
   return (
     <div id="setting-panel-view" className="w-full space-y-6 text-[#003366] relative animate-fade-in">
-      {/* Header Utama Pengaturan */}
-      <div className="flex justify-between items-center max-w-3xl">
+      <div className="flex justify-between items-center max-w-10xl">
         <div>
           <h1 className="text-2xl font-black tracking-wide text-[#002B56]">Pengaturan</h1>
           <p className="text-xs font-bold text-[#8EA9C7] mt-0.5">Kelola akun dan sesuaikan dengan keinginan</p>
         </div>
-        {/* Ikon Filter / Jam Sesuai Desain */}
-        <button className="text-slate-400 text-xl hover:text-blue-600 transition cursor-pointer">
-          ⏳
-        </button>
       </div>
 
-      <div className="w-full max-w-3xl space-y-5">
-        
-        {/* 1. SECTION PROFILE PENGGUNA */}
+      <div className="w-full max-w-10xl space-y-5">
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-          <h3 className="font-black text-sm tracking-wide text-[#002B56] flex items-center gap-2 mb-4">
-            👤 Profile Pengguna
-          </h3>
+          <h3 className="font-black text-sm tracking-wide text-[#002B56] flex items-center gap-2 mb-4">👤 Profile Pengguna</h3>
           <div className="flex justify-between items-center bg-slate-50/50 p-4 border border-slate-100 rounded-2xl">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-200 shadow-inner">
@@ -744,21 +719,12 @@ function SettingView() {
                 <p className="text-[11px] text-[#8EA9C7] font-semibold">Bahlil.orang.baik@gmail.com</p>
               </div>
             </div>
-            <button 
-              onClick={() => setActiveFrame('frame13')}
-              className="bg-[#5BC0BE] hover:bg-[#45a3a1] text-white text-xs font-black px-5 py-2.5 rounded-xl transition shadow-sm cursor-pointer"
-            >
-              🖊️ Edit Profile
-            </button>
+            <button onClick={() => setActiveFrame('frame13')} className="bg-[#5BC0BE] hover:bg-[#45a3a1] text-white text-xs font-black px-5 py-2.5 rounded-xl transition shadow-sm cursor-pointer">🖊️ Edit Profile</button>
           </div>
         </div>
 
-        {/* 2. SECTION NOTIFIKASI & PENGINGAT */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
-          <h3 className="font-black text-sm tracking-wide text-[#002B56] flex items-center gap-2 border-b border-slate-100 pb-2">
-            🔔 Notifikasi & Pengingat
-          </h3>
-          
+          <h3 className="font-black text-sm tracking-wide text-[#002B56] flex items-center gap-2 border-b border-slate-100 pb-2">🔔 Notifikasi & Pengingat</h3>
           {[
             { label: 'Notifikasi Cuaca Harian', state: notifHarian, setState: setNotifHarian, icon: '🔔' },
             { label: 'Pengingat Jadwal (kalender)', state: pengingatJadwal, setState: setPengingatJadwal, icon: '📅' },
@@ -770,54 +736,35 @@ function SettingView() {
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
               </div>
-              <button 
-                onClick={() => item.setState(!item.state)} 
-                className={`w-12 h-6 flex items-center rounded-full p-1 border transition-colors cursor-pointer ${item.state ? 'bg-blue-600 border-blue-600' : 'bg-slate-300 border-slate-300'}`}
-              >
+              <button onClick={() => item.setState(!item.state)} className={`w-12 h-6 flex items-center rounded-full p-1 border transition-colors cursor-pointer ${item.state ? 'bg-blue-600 border-blue-600' : 'bg-slate-300 border-slate-300'}`}>
                 <div className={`bg-white w-4 h-4 rounded-full shadow transition-transform ${item.state ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
             </div>
           ))}
         </div>
 
-        {/* 3. SECTION KEAMANAN AKUN */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
           <h3 className="font-black text-sm tracking-wide text-[#002B56] mb-3">🔑 Keamanan Akun</h3>
-          <button 
-            onClick={() => setActiveFrame('frame14')} 
-            className="w-full flex justify-between items-center p-4 bg-slate-50/50 border border-slate-100 hover:bg-slate-100 rounded-2xl text-xs font-extrabold text-slate-700 transition cursor-pointer"
-          >
+          <button onClick={() => setActiveFrame('frame14')} className="w-full flex justify-between items-center p-4 bg-slate-50/50 border border-slate-100 hover:bg-slate-100 rounded-2xl text-xs font-extrabold text-slate-700 transition cursor-pointer">
             <span className="flex items-center gap-2">🔑 Ubah Password</span>
             <span className="text-slate-400 font-black">&gt;</span>
           </button>
         </div>
 
-        {/* 4. SECTION HAPUS AKUN */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
           <h3 className="font-black text-sm tracking-wide text-[#002B56] mb-3">❌ Hapus Akun</h3>
-          <button 
-            onClick={() => setActiveFrame('frame15')} 
-            className="w-full p-4 bg-rose-50 text-xs font-extrabold text-red-600 text-left border border-rose-100 hover:bg-rose-100 rounded-2xl transition cursor-pointer flex items-center gap-2"
-          >
-            🗑️ Hapus Akun
-          </button>
+          <button onClick={() => setActiveFrame('frame15')} className="w-full p-4 bg-rose-50 text-xs font-extrabold text-red-600 text-left border border-rose-100 hover:bg-rose-100 rounded-2xl transition cursor-pointer flex items-center gap-2">🗑️ Hapus Akun</button>
         </div>
-
       </div>
 
-      {/* MODAL ARTIFAK LAYER (FRAME 13, 14, 15) */}
       {activeFrame && (
         <div className="fixed inset-0 bg-[#808080]/80 z-9999 flex items-center justify-center p-4">
           <div className="relative bg-[#808080] p-12 border-2 border-dashed border-slate-400 rounded-lg shadow-2xl">
-            
-            {/* FRAME 13 */}
             {activeFrame === 'frame13' && (
               <div className="w-96 bg-white rounded-md p-6 shadow-xl text-[#003366]">
                 <h3 className="font-extrabold text-sm text-slate-500 mb-4 border-b pb-2">Profiles</h3>
                 <div className="flex gap-4 items-center mb-6">
-                  <div className="w-16 h-16 rounded-full border border-dashed border-slate-300 flex flex-col items-center justify-center text-[8px] p-2 text-center font-bold text-slate-400 bg-slate-50 cursor-pointer">
-                    🔄 <br/>Tambahkan Gambar
-                  </div>
+                  <div className="w-16 h-16 rounded-full border border-dashed border-slate-300 flex flex-col items-center justify-center text-[8px] p-2 text-center font-bold text-slate-400 bg-slate-50 cursor-pointer">🔄 <br/>Tambahkan Gambar</div>
                   <div className="flex-1 space-y-3">
                     <div>
                       <label className="text-[10px] font-black text-slate-500 block mb-0.5">Nama</label>
@@ -836,7 +783,6 @@ function SettingView() {
               </div>
             )}
 
-            {/* FRAME 14 */}
             {activeFrame === 'frame14' && (
               <div className="w-96 bg-white rounded-md p-6 shadow-xl text-[#003366]">
                 <h3 className="font-extrabold text-sm text-slate-500 mb-4 border-b pb-2">Keamanan Akun</h3>
@@ -857,20 +803,16 @@ function SettingView() {
               </div>
             )}
 
-            {/* FRAME 15 */}
             {activeFrame === 'frame15' && (
               <div className="w-96 bg-white rounded-md p-6 shadow-xl text-[#003366]">
                 <h3 className="font-extrabold text-sm text-slate-500 mb-3 border-b pb-2">Hapus Akun</h3>
-                <p className="text-xs font-bold text-slate-700 leading-relaxed mb-6">
-                  Apakah kamu yakin ingin menghapus akunmu secara permanen?
-                </p>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed mb-6">Apakah kamu yakin ingin menghapus akunmu secara permanen?</p>
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button onClick={() => setActiveFrame(null)} className="bg-[#E6E6E6] text-slate-600 font-bold text-xs px-4 py-2 rounded cursor-pointer">BATAL</button>
                   <button onClick={() => setActiveFrame(null)} className="bg-[#C82333] text-white font-black text-xs px-5 py-2 rounded cursor-pointer">IYA</button>
                 </div>
               </div>
             )}
-
           </div>
         </div>
       )}
