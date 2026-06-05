@@ -6,14 +6,19 @@ import iconSetting from '../assets/setting.svg';
 import iconLogout from '../assets/logout.svg';
 import avatarBahlil from '../assets/avatar-bahlil.svg';
 
-export default function Sidebar({ activeMenu, setActiveMenu }) {
+// 👍 MENERIMA PROPS 'user' DAN 'onLogout' SECARA DINAMIS
+export default function Sidebar({ activeMenu, setActiveMenu, onLogout, user }) {
+  // Ambil nama dari metadata pendaftaran, jika kosong potong dari alamat email depan `@`
+  const namaDinamis = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User';
+
   return (
     <aside className="w-72 bg-[#E9F1F8] flex flex-col py-10 px-6 border-r border-slate-200 shrink-0 z-50">
       <div className="flex flex-col items-center mb-12 text-center">
         <div className="w-24 h-24 rounded-full mb-4 overflow-hidden border-4 border-white shadow-sm bg-white">
           <img src={avatarBahlil} alt="Avatar" className="w-full h-full object-cover" />
         </div>
-        <h3 className="font-black text-xl tracking-tight uppercase">Bahlil</h3>
+        {/* 👍 SEKARANG NAMA INI SUDAH OTOMATIS BERUBAH */}
+        <h3 className="font-black text-xl tracking-tight uppercase text-[#003366]">{namaDinamis}</h3>
         <p className="text-[10px] opacity-40 uppercase font-black tracking-widest mt-1">Welcome!</p>
       </div>
 
@@ -31,7 +36,12 @@ export default function Sidebar({ activeMenu, setActiveMenu }) {
         >
           <img src={iconSetting} alt="" className="w-6 h-6" /> Setting
         </button>
-        <button className="w-full flex items-center gap-5 px-4 font-bold text-sm text-[#E74C3C] hover:scale-105 transition cursor-pointer">
+        
+        {/* 👍 HUBUNGKAN KE FUNGSI LOGOUT SUPABASE */}
+        <button 
+          onClick={onLogout}
+          className="w-full flex items-center gap-5 px-4 font-bold text-sm text-[#E74C3C] hover:scale-105 transition cursor-pointer bg-transparent border-none text-left"
+        >
           <img src={iconLogout} alt="" className="w-6 h-6" /> Log Out
         </button>
       </div>

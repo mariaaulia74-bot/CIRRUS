@@ -1,11 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 👍 TAMBAHKAN useEffect
+import { supabase } from '../supabaseClient'; 
 
-export default function SettingView() {
+// 👍 TERIMA PROPS 'onProfileUpdate' UNTUK SYNC KE APP.JSX
+export default function SettingView({ user, onProfileUpdate }) {
   const [notifHarian, setNotifHarian] = useState(true);
   const [pengingatJadwal, setPengingatJadwal] = useState(true);
   const [smartSuggestion, setSmartSuggestion] = useState(true);
   const [cuacaEkstrem, setCuacaEkstrem] = useState(true);
   const [activeFrame, setActiveFrame] = useState(null);
+
+  const namaAwal = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Pengguna CIRRUS';
+  const [inputNama, setInputNama] = useState(namaAwal);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const emailUser = user?.email || 'dummy.email@gmail.com';
+
+  // 👍 PASTIKAN INPUT NAMA SELALU MENGIKUTI USER YANG SEDANG AKTIF (TERUTAMA SETELAH UPDATE / GANTI AKUN)
+  useEffect(() => {
+    setInputNama(namaAwal);
+  }, [user, namaAwal]);
+
+  // 👍 FUNGSI UTAMA UNTUK UPDATE KE SUPABASE
+  const handleUpdateProfile = async () => {
+    if (!inputNama.trim()) {
+      alert("Nama tidak boleh kosong!");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // Tembak update ke metadata user_metadata milik Supabase Auth
+      const { data, error } = await supabase.auth.updateUser({
+        data: { display_name: inputNama }
+      });
+
+      if (error) throw error;
+
+      // 👍 JIKA BERHASIL, KIRIM DATA USER TERBARU KE APP.JSX AGAR STATE RE-RENDER INSTAN DI SIDEBAR
+      if (data?.user && typeof onProfileUpdate === 'function') {
+        onProfileUpdate(data.user);
+      }
+
+      alert("Profil berhasil diperbarui!");
+      setActiveFrame(null); // Tutup modal
+    } catch (error) {
+      alert("Gagal memperbarui profil: " + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <div id="setting-panel-view" className="w-full space-y-6 text-[#003366] relative animate-fade-in">
@@ -29,15 +72,24 @@ export default function SettingView() {
                 </svg>
               </div>
               <div>
-                <h4 className="font-extrabold text-sm text-slate-800">Bahlil Septian</h4>
-                <p className="text-[11px] text-[#8EA9C7] font-semibold">Bahlil.orang.baik@gmail.com</p>
+                <h4 className="font-extrabold text-sm text-slate-800">{namaAwal}</h4>
+                <p className="text-[11px] text-[#8EA9C7] font-semibold">{emailUser}</p>
               </div>
             </div>
-            <button onClick={() => setActiveFrame('frame13')} className="bg-[#5BC0BE] hover:bg-[#45a3a1] text-white text-xs font-black px-5 py-2.5 rounded-xl transition shadow-sm cursor-pointer">🖊️ Edit Profile</button>
+            {/* Tombol Edit Profile */}
+            <button 
+              onClick={() => {
+                setInputNama(namaAwal); // Reset input sesuai nama saat ini sebelum modal buka
+                setActiveFrame('frame13');
+              }} 
+              className="bg-[#5BC0BE] hover:bg-[#45a3a1] text-white text-xs font-black px-5 py-2.5 rounded-xl transition shadow-sm cursor-pointer"
+            >
+              🖊️ Edit Profile
+            </button>
           </div>
         </div>
 
-        {/* Notifikasi - Daftar di sini */}
+        {/* Notifikasi */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
           <h3 className="font-black text-sm tracking-wide text-[#002B56] flex items-center gap-2 border-b border-slate-100 pb-2">🔔 Notifikasi & Pengingat</h3>
           {[
@@ -59,17 +111,40 @@ export default function SettingView() {
         </div>
       </div>
 
-      {/* Modal/Overlay */}
+      {/* Modal/Overlay Edit Profile */}
       {activeFrame && (
-        <div className="fixed inset-0 bg-black/50 z-max flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
             {activeFrame === 'frame13' && (
-              <div className="space-y-4">
+              <div className="space-y-4 text-left">
                 <h3 className="font-extrabold text-lg text-slate-800">Edit Profile</h3>
-                <input type="text" className="w-full bg-slate-100 rounded-xl p-3 text-sm" defaultValue="Bahlil Septian" />
-                <div className="flex gap-2">
-                  <button onClick={() => setActiveFrame(null)} className="flex-1 py-2 bg-slate-200 rounded-xl text-xs font-bold">BATAL</button>
-                  <button onClick={() => setActiveFrame(null)} className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-xs font-black">SIMPAN</button>
+                
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Nama Lengkap</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-slate-100 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    value={inputNama}
+                    onChange={(e) => setInputNama(e.target.value)}
+                    disabled={isUpdating}
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    onClick={() => setActiveFrame(null)} 
+                    disabled={isUpdating}
+                    className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 rounded-xl text-xs font-bold transition disabled:opacity-50"
+                  >
+                    BATAL
+                  </button>
+                  <button 
+                    onClick={handleUpdateProfile}
+                    disabled={isUpdating}
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition disabled:opacity-50"
+                  >
+                    {isUpdating ? 'MENYIMPAN...' : 'SIMPAN'}
+                  </button>
                 </div>
               </div>
             )}

@@ -13,10 +13,7 @@ const lokasiKalimantan = {
  */
 export async function fetchWeatherByCity(city) {
   try {
-    // Ambil titik koordinat secara aman berdasarkan parameter kota
     const titikKoordinat = lokasiKalimantan[city] || lokasiKalimantan['Banjarmasin'];
-    
-    // Tembak langsung ke satelit API Open-Meteo menggunakan koordinat yang valid
     const urlAPI = `https://api.open-meteo.com/v1/forecast?latitude=${titikKoordinat.lat}&longitude=${titikKoordinat.lon}&current_weather=true&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m`;
     
     const response = await fetch(urlAPI);
@@ -27,16 +24,22 @@ export async function fetchWeatherByCity(city) {
     const dataJSON = await response.json();
     const current = dataJSON.current_weather;
 
-    // Susun objek data cuaca rapi untuk dikirimkan ke Dashboard utama kalian
     return {
       suhu: `${Math.round(current.temperature)}°`,
       kodeCuaca: current.weathercode,
       kecepatanAngin: `${current.windspeed} km/h`,
-      kelembapan: dataJSON.hourly?.relative_humidity_2m?.[0] ? `${dataJSON.hourly.relative_humidity_2m[0]}%` : '65%'
+      kelembapan: dataJSON.hourly?.relative_humidity_2m?.[0] ? `${dataJSON.hourly.relative_humidity_2m[0]}%` : '85%'
     };
 
   } catch (error) {
-    console.error("Gagal mengambil data cuaca CIRRUS:", error);
-    throw error;
+    console.warn("API Cuaca Bermasalah, Mengaktifkan Data Cadangan Offline:", error);
+    
+    // AMANKAN DENGAN DATA CADANGAN JIKA API OPEN-METEO JATUH/OFFLINE
+    return {
+      suhu: "30°",
+      kodeCuaca: 1, // Cerah Berawan
+      kecepatanAngin: "10 km/h",
+      kelembapan: "80%"
+    };
   }
 }

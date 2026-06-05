@@ -87,7 +87,10 @@ export default function KualitasUdaraView() {
         <div className="flex-1 z-20 flex flex-col justify-between space-y-6 md:space-y-0">
           <div>
             <h2 className="text-2xl font-black">{infoAktif.nama}</h2>
-            <p className="text-xs font-bold text-slate-400 mt-0.5">Jumat, 22/05/2026</p>
+            <p className="text-xs font-bold text-slate-400 mt-0.5">
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </p>
+
             
             <div className={`mt-4 border rounded-3xl p-4 max-w-sm shadow-inner flex gap-4 items-center ${
               infoAktif.status === 'BAIK' ? 'bg-emerald-50 border-emerald-100' :
