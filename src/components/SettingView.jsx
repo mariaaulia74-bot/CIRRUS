@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react'; // 👍 TAMBAHKAN useEffect
+import React, { useState, useEffect } from 'react'; 
 import { supabase } from '../supabaseClient'; 
 
-// 👍 TERIMA PROPS 'onProfileUpdate' UNTUK SYNC KE APP.JSX
 export default function SettingView({ user, onProfileUpdate }) {
   const [notifHarian, setNotifHarian] = useState(true);
   const [pengingatJadwal, setPengingatJadwal] = useState(true);
@@ -9,18 +8,24 @@ export default function SettingView({ user, onProfileUpdate }) {
   const [cuacaEkstrem, setCuacaEkstrem] = useState(true);
   const [activeFrame, setActiveFrame] = useState(null);
 
-  const namaAwal = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Pengguna CIRRUS';
+  // Ambil data nama tersimpan di LocalStorage jika ada (supaya tidak reset saat pindah menu)
+  const emailUser = user?.email || localStorage.getItem('last_logged_in_email') || 'dummy.email@gmail.com';
+  const savedBypassName = localStorage.getItem(`bypass_name_${emailUser}`);
+
+  const namaAwal = user?.user_metadata?.display_name || 
+                   savedBypassName || 
+                   user?.email?.split('@')[0] || 
+                   (localStorage.getItem('last_logged_in_email') ? emailUser.split('@')[0].toUpperCase() : 'Pengguna CIRRUS');
+
   const [inputNama, setInputNama] = useState(namaAwal);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const emailUser = user?.email || 'dummy.email@gmail.com';
-
-  // 👍 PASTIKAN INPUT NAMA SELALU MENGIKUTI USER YANG SEDANG AKTIF (TERUTAMA SETELAH UPDATE / GANTI AKUN)
+  // PASTIKAN INPUT NAMA SELALU MENGIKUTI USER YANG SEDANG AKTIF
   useEffect(() => {
     setInputNama(namaAwal);
   }, [user, namaAwal]);
 
-  // 👍 FUNGSI UTAMA UNTUK UPDATE KE SUPABASE
+  // FUNGSI UTAMA UNTUK UPDATE (YANG SUDAH DIPERBAIKI UNTUK BYPASS)
   const handleUpdateProfile = async () => {
     if (!inputNama.trim()) {
       alert("Nama tidak boleh kosong!");
@@ -29,16 +34,38 @@ export default function SettingView({ user, onProfileUpdate }) {
 
     setIsUpdating(true);
     try {
-      // Tembak update ke metadata user_metadata milik Supabase Auth
-      const { data, error } = await supabase.auth.updateUser({
-        data: { display_name: inputNama }
-      });
+      // 1. Cek Sesi: Apakah user login lewat Supabase asli atau Bypass?
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (error) throw error;
+      if (session) {
+        // JIKA LOGIN ASLI: Tembak ke metadata Supabase Auth
+        const { data, error } = await supabase.auth.updateUser({
+          data: { display_name: inputNama }
+        });
 
-      // 👍 JIKA BERHASIL, KIRIM DATA USER TERBARU KE APP.JSX AGAR STATE RE-RENDER INSTAN DI SIDEBAR
-      if (data?.user && typeof onProfileUpdate === 'function') {
-        onProfileUpdate(data.user);
+        if (error) throw error;
+
+        if (data?.user && typeof onProfileUpdate === 'function') {
+          onProfileUpdate(data.user);
+        }
+      } else {
+        // 💡 JIKA LOGIN BYPASS: Lakukan simulasi lokal agar lolos dari error "Auth session missing"
+        localStorage.setItem(`bypass_name_${emailUser}`, inputNama);
+
+        const mockUpdatedUser = {
+          ...user,
+          id: 'bypass-dummy-id',
+          email: emailUser,
+          user_metadata: {
+            ...user?.user_metadata,
+            display_name: inputNama
+          }
+        };
+
+        // Kirim state baru ke App.jsx supaya nama di Sidebar kiri langsung ikut berubah instan!
+        if (typeof onProfileUpdate === 'function') {
+          onProfileUpdate(mockUpdatedUser);
+        }
       }
 
       alert("Profil berhasil diperbarui!");

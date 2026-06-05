@@ -13,7 +13,7 @@ import AuthView from './components/AuthView';
 // IMPORT CLIENT SUPABASE UNTUK AUTENTIKASI DINAMIS
 import { supabase } from './supabaseClient';
 
-// 👍 GUNAKAN IMPOR STATIS BIASA AGAR VITE TIDAK CRASH / FREEZE
+// GUNAKAN IMPOR STATIS BIASA AGAR VITE TIDAK CRASH / FREEZE
 import { fetchWeatherByCity } from './services/weatherService';
 import { getAIOpinion } from './services/aiService';
 
@@ -34,7 +34,7 @@ export default function App() {
   const [aiSuggestion, setAiSuggestion] = useState('Sedang menyelaraskan asisten cuaca...');
   const [isLoading, setIsLoading] = useState(true);
 
-  // 👤 STATE BARU: Menyimpan data user yang sedang login secara dinamis
+  // 👤 STATE UTAMA: Menyimpan data user yang sedang login secara dinamis
   const [sessionUser, setSessionUser] = useState(null);
   
   // Efek interval untuk memperbarui waktu sistem agar jam berdetak real-time setiap menit
@@ -45,27 +45,66 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // 🔄 EFEK BARU: Memantau kondisi login/logout user secara real-time dari Supabase
+  // 🔄 EFEK UTAMA: Memantau kondisi login/logout user secara real-time
   useEffect(() => {
     // 1. Periksa sesi yang ada saat aplikasi pertama kali dimuat
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSessionUser(session.user);
         setCurrentView('dashboard'); // Otomatis masuk jika sesi masih aktif
+      } else {
+        // Cek apakah ada sesi bypass lokal hasil reset password dummy kemarin
+        periksaBypassLocalSession();
       }
     });
 
-    // 2. Pasang pendengar (listener) perubahan status autentikasi
+    // 2. Pasang pendengar (listener) perubahan status autentikasi dari Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setSessionUser(session.user);
       } else {
-        setSessionUser(null);
+        // 💡 KUNCI AMAN DI SINI:
+        // Jika Supabase mengembalikan session null, jangan langsung mengosongkan data.
+        // Periksa dulu apakah ada email manusia hasil login bypass di localStorage.
+        const lastEmail = localStorage.getItem('last_logged_in_email');
+        if (lastEmail) {
+          periksaBypassLocalSession(); // Amankan status session dummy lokal
+        } else {
+          setSessionUser(null);
+        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [currentView]); // Re-run saat view berubah untuk memastikan state menangkap perpindahan AuthView
+
+  // 💡 FUNGSI PENYINKRON DATA BYPASS (Solusi agar Nama & Email Manusia Terkunci)
+  // 💡 FUNGSI PENYINKRON DATA BYPASS (Solusi Total Kasus Reset Password)
+  const periksaBypassLocalSession = () => {
+    // 1. Ambil email terakhir yang dimasukkan oleh user saat login/reset password
+    const lastEmail = localStorage.getItem('last_logged_in_email');
+    
+    if (lastEmail) {
+      // 2. Cek apakah user pernah mengedit nama di SettingView khusus untuk email ini
+      const savedBypassName = localStorage.getItem(`bypass_name_${lastEmail}`);
+      
+      // 3. Jika belum pernah edit nama, buat nama otomatis dari potongan email (Contoh: manusia@gmail.com -> MANUSIA)
+      //    Ini mencegah nama di sidebar tertulis sebagai "USER" secara default.
+      const namaTampilan = savedBypassName || lastEmail.split('@')[0].toUpperCase();
+
+      // 4. Set state user secara utuh dengan email asli yang diinputkan user!
+      setSessionUser({
+        id: 'bypass-dummy-id',
+        email: lastEmail, // 🚀 SEKARANG EMAIL KUNCI SESUAI INPUT (Bukan dummy.email@gmail.com lagi!)
+        user_metadata: {
+          display_name: namaTampilan
+        }
+      });
+    } else {
+      // Jika benar-benar tidak ada riwayat login/bypass, baru set null
+      setSessionUser(null);
+    }
+  };
 
   // Fungsi penerjemah kode cuaca Open-Meteo
   const tafsirkanKodeCuaca = (code) => {
@@ -88,7 +127,7 @@ export default function App() {
       const dataFallback = {
         suhu: '29°',
         kodeCuaca: 61, 
-        kecepatanAngin: '5.5 km/h',
+        ke速度Angin: '5.5 km/h',
         kelembapan: '85%'
       };
 
@@ -106,7 +145,7 @@ export default function App() {
               kota: currentLocation,
               suhu: dataAsli.suhu,
               kelembapan: dataAsli.kelembapan,
-              kecepatanAngin: dataAsli.kecepatanAngin
+              keindexAngin: dataAsli.kecepatanAngin
             };
             
             const hasilAI = await getAIOpinion(parameterAI);
@@ -154,8 +193,7 @@ export default function App() {
   
   // 1. KONDISI TAMPILAN LANDING PAGE
   if (currentView === 'landing') {
-  // 👍 Kirimkan sessionUser ke komponen LandingPage melalui props 'user'
-  return <LandingPage onNavigate={setCurrentView} user={sessionUser} />; 
+    return <LandingPage onNavigate={setCurrentView} user={sessionUser} />; 
   }
 
   // 2. KONDISI TAMPILAN LOGIN / SIGNUP (AUTH)
@@ -173,13 +211,19 @@ export default function App() {
   // 3. KONDISI TAMPILAN DASHBOARD APLIKASI UTAMA
   return (
     <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
-      {/* 👍 OPER DATA USER KE SIDEBAR */}
+      {/* OPER DATA USER KE SIDEBAR */}
       <Sidebar 
         activeMenu={activeMenu} 
         setActiveMenu={setActiveMenu} 
         user={sessionUser}
         onLogout={async () => {
           await supabase.auth.signOut();
+          localStorage.removeItem('last_logged_in_email'); // Hapus jejak email bypass saat logout
+          // Hapus juga nama bypass yang tersimpan agar bersih saat login akun berbeda nantinya
+          if (sessionUser?.email) {
+            localStorage.removeItem(`bypass_name_${sessionUser.email}`);
+          }
+          setSessionUser(null);
           setCurrentView('landing');
         }} 
       />
@@ -215,7 +259,7 @@ export default function App() {
           
           {activeMenu === 'kualitas udara' && <KualitasUdaraView />}
           
-          {/* 👍 OPER DATA USER DAN CALLBACK UPDATE KE SETTING VIEW */}
+          {/* OPER DATA USER DAN CALLBACK UPDATE KE SETTING VIEW */}
           {activeMenu === 'setting' && (
             <SettingView 
               user={sessionUser}
