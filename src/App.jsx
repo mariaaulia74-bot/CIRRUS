@@ -45,16 +45,16 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // 🔄 EFEK UTAMA: Memantau kondisi login/logout user secara real-time
+  // 🔄 EFEK UTAMA: Memantau kondisi login/logout murni menggunakan Supabase Auth
   useEffect(() => {
     // 1. Periksa sesi yang ada saat aplikasi pertama kali dimuat
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSessionUser(session.user);
-        setCurrentView('dashboard'); // Otomatis masuk jika sesi masih aktif
+        setCurrentView('dashboard');
       } else {
-        // Cek apakah ada sesi bypass lokal hasil reset password dummy kemarin
-        periksaBypassLocalSession();
+        setSessionUser(null);
+        setCurrentView('landing');
       }
     });
 
@@ -62,49 +62,15 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setSessionUser(session.user);
+        setCurrentView('dashboard');
       } else {
-        // 💡 KUNCI AMAN DI SINI:
-        // Jika Supabase mengembalikan session null, jangan langsung mengosongkan data.
-        // Periksa dulu apakah ada email manusia hasil login bypass di localStorage.
-        const lastEmail = localStorage.getItem('last_logged_in_email');
-        if (lastEmail) {
-          periksaBypassLocalSession(); // Amankan status session dummy lokal
-        } else {
-          setSessionUser(null);
-        }
+        setSessionUser(null);
+        setCurrentView('landing');
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [currentView]); // Re-run saat view berubah untuk memastikan state menangkap perpindahan AuthView
-
-  // 💡 FUNGSI PENYINKRON DATA BYPASS (Solusi agar Nama & Email Manusia Terkunci)
-  // 💡 FUNGSI PENYINKRON DATA BYPASS (Solusi Total Kasus Reset Password)
-  const periksaBypassLocalSession = () => {
-    // 1. Ambil email terakhir yang dimasukkan oleh user saat login/reset password
-    const lastEmail = localStorage.getItem('last_logged_in_email');
-    
-    if (lastEmail) {
-      // 2. Cek apakah user pernah mengedit nama di SettingView khusus untuk email ini
-      const savedBypassName = localStorage.getItem(`bypass_name_${lastEmail}`);
-      
-      // 3. Jika belum pernah edit nama, buat nama otomatis dari potongan email (Contoh: manusia@gmail.com -> MANUSIA)
-      //    Ini mencegah nama di sidebar tertulis sebagai "USER" secara default.
-      const namaTampilan = savedBypassName || lastEmail.split('@')[0].toUpperCase();
-
-      // 4. Set state user secara utuh dengan email asli yang diinputkan user!
-      setSessionUser({
-        id: 'bypass-dummy-id',
-        email: lastEmail, // 🚀 SEKARANG EMAIL KUNCI SESUAI INPUT (Bukan dummy.email@gmail.com lagi!)
-        user_metadata: {
-          display_name: namaTampilan
-        }
-      });
-    } else {
-      // Jika benar-benar tidak ada riwayat login/bypass, baru set null
-      setSessionUser(null);
-    }
-  };
+  }, []); 
 
   // Fungsi penerjemah kode cuaca Open-Meteo
   const tafsirkanKodeCuaca = (code) => {
@@ -120,7 +86,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Hanya lakukan fetch API jika user berada di dalam dashboard utama
     if (currentView !== 'dashboard') return;
 
     const muatDataDinamis = async () => {
@@ -133,13 +98,10 @@ export default function App() {
 
       try {
         setIsLoading(true);
-        
-        // 1. AMBIL DATA CUACA UTAMA TERLEBIH DAHULU
         if (typeof fetchWeatherByCity === 'function') {
           const dataAsli = await fetchWeatherByCity(currentLocation);
           setLiveWeather(dataAsli);
           
-          // 2. KONDISIKAN PEMANGGILAN AI SECARA AMAN
           if (typeof getAIOpinion === 'function') {
             const parameterAI = {
               kota: currentLocation,
@@ -149,7 +111,6 @@ export default function App() {
             };
             
             const hasilAI = await getAIOpinion(parameterAI);
-            
             if (hasilAI) {
               setAiSuggestion(hasilAI);
             } else {
@@ -191,12 +152,10 @@ export default function App() {
     alert("Filter wilayah diklik!");
   };
   
-  // 1. KONDISI TAMPILAN LANDING PAGE
   if (currentView === 'landing') {
     return <LandingPage onNavigate={setCurrentView} user={sessionUser} />; 
   }
 
-  // 2. KONDISI TAMPILAN LOGIN / SIGNUP (AUTH)
   if (currentView === 'login' || currentView === 'signup') {
     return (
       <AuthView 
@@ -208,21 +167,14 @@ export default function App() {
     );
   }
 
-  // 3. KONDISI TAMPILAN DASHBOARD APLIKASI UTAMA
   return (
     <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
-      {/* OPER DATA USER KE SIDEBAR */}
       <Sidebar 
         activeMenu={activeMenu} 
         setActiveMenu={setActiveMenu} 
         user={sessionUser}
         onLogout={async () => {
           await supabase.auth.signOut();
-          localStorage.removeItem('last_logged_in_email'); // Hapus jejak email bypass saat logout
-          // Hapus juga nama bypass yang tersimpan agar bersih saat login akun berbeda nantinya
-          if (sessionUser?.email) {
-            localStorage.removeItem(`bypass_name_${sessionUser.email}`);
-          }
           setSessionUser(null);
           setCurrentView('landing');
         }} 
@@ -259,7 +211,6 @@ export default function App() {
           
           {activeMenu === 'kualitas udara' && <KualitasUdaraView />}
           
-          {/* OPER DATA USER DAN CALLBACK UPDATE KE SETTING VIEW */}
           {activeMenu === 'setting' && (
             <SettingView 
               user={sessionUser}
