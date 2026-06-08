@@ -5,49 +5,30 @@ import KalenderView from './components/KalenderView';
 import PetaView from './components/PetaView';
 import KualitasUdaraView from './components/KualitasUdaraView';
 import SettingView from './components/SettingView';
-
-// IMPORT KOMPONEN TERBARU UNTUK LANDING PAGE & AUTH
 import LandingPage from './components/landing/LandingPage';
 import AuthView from './components/AuthView';
-
-// IMPORT CLIENT SUPABASE UNTUK AUTENTIKASI DINAMIS
 import { supabase } from './supabaseClient';
-
-// GUNAKAN IMPOR STATIS BIASA AGAR VITE TIDAK CRASH / FREEZE
 import { fetchWeatherByCity } from './services/weatherService';
 import { getAIOpinion } from './services/aiService';
 
 export default function App() {
-  // MANAJEMEN ROUTING VIEW UTAMA ('landing', 'login', 'signup', 'dashboard')
   const [currentView, setCurrentView] = useState('landing');
-  
-  // State internal dashboard
   const [activeMenu, setActiveMenu] = useState('beranda');
   const [currentLocation, setCurrentLocation] = useState('Banjarmasin');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
-  // STATE WAKTU SISTEM UTAMA (WITA)
   const [waktuSistem, setWaktuSistem] = useState(new Date());
-
-  // State manajemen data utama
   const [liveWeather, setLiveWeather] = useState(null);
   const [aiSuggestion, setAiSuggestion] = useState('Sedang menyelaraskan asisten cuaca...');
   const [isLoading, setIsLoading] = useState(true);
-
-  // 👤 STATE UTAMA: Menyimpan data user yang sedang login secara dinamis
   const [sessionUser, setSessionUser] = useState(null);
   
-  // Efek interval untuk memperbarui waktu sistem agar jam berdetak real-time setiap menit
   useEffect(() => {
-    const timer = setInterval(() => {
-      setWaktuSistem(new Date());
-    }, 60000);
+    const timer = setInterval(() => { setWaktuSistem(new Date()); }, 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // 🔄 EFEK UTAMA: Memantau kondisi login/logout murni menggunakan Supabase Auth
+  // 🔄 EFEK UTAMA: Memantau kondisi login/logout MURNI dari Supabase
   useEffect(() => {
-    // 1. Periksa sesi yang ada saat aplikasi pertama kali dimuat
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSessionUser(session.user);
@@ -58,7 +39,6 @@ export default function App() {
       }
     });
 
-    // 2. Pasang pendengar (listener) perubahan status autentikasi dari Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setSessionUser(session.user);
@@ -70,9 +50,8 @@ export default function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []); 
+  }, []);
 
-  // Fungsi penerjemah kode cuaca Open-Meteo
   const tafsirkanKodeCuaca = (code) => {
     const c = parseInt(code);
     if (c === 0) return 'Cerah';
@@ -87,139 +66,81 @@ export default function App() {
 
   useEffect(() => {
     if (currentView !== 'dashboard') return;
-
     const muatDataDinamis = async () => {
-      const dataFallback = {
-        suhu: '29°',
-        kodeCuaca: 61, 
-        ke速度Angin: '5.5 km/h',
-        kelembapan: '85%'
-      };
-
+      const dataFallback = { suhu: '29°', kodeCuaca: 61, kecepatanAngin: '5.5 km/h', kelembapan: '85%' };
       try {
         setIsLoading(true);
         if (typeof fetchWeatherByCity === 'function') {
           const dataAsli = await fetchWeatherByCity(currentLocation);
           setLiveWeather(dataAsli);
-          
           if (typeof getAIOpinion === 'function') {
-            const parameterAI = {
-              kota: currentLocation,
-              suhu: dataAsli.suhu,
-              kelembapan: dataAsli.kelembapan,
-              keindexAngin: dataAsli.kecepatanAngin
-            };
-            
-            const hasilAI = await getAIOpinion(parameterAI);
-            if (hasilAI) {
-              setAiSuggestion(hasilAI);
-            } else {
-              buatSaranLokalCadangan(dataAsli);
-            }
-          } else {
-            buatSaranLokalCadangan(dataAsli);
+            const hasilAI = await getAIOpinion({ kota: currentLocation, suhu: dataAsli.suhu, kelembapan: dataAsli.kelembapan, keindexAngin: dataAsli.kecepatanAngin });
+            if (hasilAI) setAiSuggestion(hasilAI);
+            else setLiveWeather(dataFallback);
           }
-        } else {
-          setLiveWeather(dataFallback);
-          setAiSuggestion("Menampilkan data moda aman (offline).");
         }
       } catch (error) {
-        console.error("Sistem menangkap gangguan data:", error);
         setLiveWeather(dataFallback);
-        setAiSuggestion("Gagal memuat saran cuaca dinamis.");
-      } finally {
-        setIsLoading(false);
-      }
+      } finally { setIsLoading(false); }
     };
-
-    const buatSaranLokalCadangan = (data) => {
-      const angkaSuhu = parseInt(data.suhu);
-      const kondisi = tafsirkanKodeCuaca(data.kodeCuaca);
-
-      if (kondisi.includes('Hujan') || kondisi.includes('Gerimis')) {
-        setAiSuggestion(`Saat ini wilayah ${currentLocation} terdeteksi ${kondisi} dengan suhu ${data.suhu}. Bagi amang dan acil yang mau beraktivitas di luar, jangan lupa sedia payung atau jas hujan ya! 🌧️`);
-      } else if (angkaSuhu >= 33) {
-        setAiSuggestion(`Cuaca di ${currentLocation} terasa cukup menyengat nih mencapai ${data.suhu}. Kurangi aktivitas luar ruangan yang terlalu berat dan pastikan hidrasi tubuh terjaga dengan baik! ☀️`);
-      } else {
-        setAiSuggestion(`Langit ${currentLocation} terpantau ${kondisi} dengan suhu ${data.suhu}. Kondisi yang cukup bersahabat dan nyaman untuk menyelesaikan agenda Anda hari ini.`);
-      }
-    };
-
     muatDataDinamis();
   }, [currentLocation, currentView]);
 
-  const openFilter = () => {
-    alert("Filter wilayah diklik!");
-  };
-  
-  if (currentView === 'landing') {
-    return <LandingPage onNavigate={setCurrentView} user={sessionUser} />; 
-  }
-
+  if (currentView === 'landing') return <LandingPage onNavigate={setCurrentView} user={sessionUser} />;
   if (currentView === 'login' || currentView === 'signup') {
-    return (
-      <AuthView 
-        initialMode={currentView} 
-        onAuthSuccess={() => setCurrentView('dashboard')} 
-        onBackToLanding={() => setCurrentView('landing')} 
-        waktuSistem={waktuSistem}
-      />
-    );
+    return <AuthView initialMode={currentView} onAuthSuccess={() => setCurrentView('dashboard')} onBackToLanding={() => setCurrentView('landing')} waktuSistem={waktuSistem} />;
   }
 
+  // 👍 KUNCI PERBAIKAN: Menggunakan pembungkus <> dan </> agar tidak bentrok
   return (
-    <div className="flex h-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden relative">
-      <Sidebar 
-        activeMenu={activeMenu} 
-        setActiveMenu={setActiveMenu} 
-        user={sessionUser}
-        onLogout={async () => {
+    <>
+      <button 
+        onClick={async () => {
           await supabase.auth.signOut();
-          setSessionUser(null);
-          setCurrentView('landing');
-        }} 
-      />
-      
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F0F5FA]">
-        <div className="flex-1 overflow-y-auto p-10 no-scrollbar bg-[#F0F5FA]">
-          
-          {activeMenu === 'beranda' && (
-            <BerandaView 
-              currentLocation={currentLocation}
-              openFilter={openFilter}
-              liveWeather={liveWeather}
-              aiSuggestion={aiSuggestion}
-              isLoading={isLoading}
-              tafsirkanKodeCuaca={tafsirkanKodeCuaca}
-              waktuSistem={waktuSistem} 
-            />
-          )}
+          localStorage.clear();
+          sessionStorage.clear();
+          alert("Sesi berhasil dibersihkan! Menuju Landing Page...");
+          window.location.reload();
+        }}
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          background: '#E74C3C',
+          color: 'white',
+          padding: '15px 25px',
+          borderRadius: '10px',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          border: 'none',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+        }}
+      >
+        ⚠️ KLIK INI UNTUK LOGOUT PAKSA
+      </button>
 
-          {activeMenu === 'kalender' && (
-            <KalenderView 
-              selectedDate={selectedDate} 
-              setSelectedDate={setSelectedDate} 
-              waktuSistem={waktuSistem} 
-            />
-          )}
-
-          {activeMenu === 'peta' && (
-            <PetaView 
-              waktuSistem={waktuSistem} 
-            />
-          )}
-          
-          {activeMenu === 'kualitas udara' && <KualitasUdaraView />}
-          
-          {activeMenu === 'setting' && (
-            <SettingView 
-              user={sessionUser}
-              onProfileUpdate={(updatedUser) => setSessionUser(updatedUser)}
-            />
-          )}
-          
-        </div>
-      </main>
-    </div>
+      <div className="flex flex-col md:flex-row min-h-screen bg-[#F0F5FA] font-sans text-[#003366] relative">
+        <Sidebar 
+          activeMenu={activeMenu} 
+          setActiveMenu={setActiveMenu} 
+          user={sessionUser}
+          onLogout={async () => {
+            await supabase.auth.signOut();
+            setSessionUser(null);
+            setCurrentView('landing');
+          }} 
+        />
+        <main className="flex-1 min-w-0 p-6 md:p-10 bg-[#F0F5FA]">
+          <div className="max-w-7xl mx-auto">
+            {activeMenu === 'beranda' && <BerandaView currentLocation={currentLocation} openFilter={() => alert("Filter!")} liveWeather={liveWeather} aiSuggestion={aiSuggestion} isLoading={isLoading} tafsirkanKodeCuaca={tafsirkanKodeCuaca} waktuSistem={waktuSistem} />}
+            {activeMenu === 'kalender' && <KalenderView selectedDate={selectedDate} setSelectedDate={setSelectedDate} waktuSistem={waktuSistem} />}
+            {activeMenu === 'peta' && <PetaView waktuSistem={waktuSistem} />}
+            {activeMenu === 'kualitas udara' && <KualitasUdaraView />}
+            {activeMenu === 'setting' && <SettingView user={sessionUser} onProfileUpdate={(updatedUser) => setSessionUser(updatedUser)} />}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
