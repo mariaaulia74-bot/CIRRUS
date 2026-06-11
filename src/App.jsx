@@ -27,7 +27,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // 🔄 EFEK UTAMA: Memantau kondisi login/logout MURNI dari Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -92,10 +91,10 @@ export default function App() {
   }
 
   return (
-    // KUNCI UTAMA: md:h-screen mengunci tinggi layar agar aplikasi membagi area scroll dengan adil
+    // 📌 FIXED BERSAMA: Mengunci layar dashboard total agar pembagian scroll adil
     <div className="flex flex-col md:flex-row md:h-screen w-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden">
       
-      {/* 📌 SIDEBAR: Dipaku mati di kiri layar (md:sticky) dan tidak boleh mengecil (flex-shrink-0) */}
+      {/* Sidebar Menetap */}
       <aside className="md:sticky md:top-0 md:h-screen w-full md:w-72 flex-shrink-0 z-50 bg-[#E9F1F8]">
         <Sidebar 
           activeMenu={activeMenu} 
@@ -109,7 +108,7 @@ export default function App() {
         />
       </aside>
 
-      {/* 📌 AREA KONTEN UTAMA: Diberikan h-full dan overflow-y-auto agar HANYA area ini yang bisa digulir ke bawah */}
+      {/* Konten Utama Kanan yang Bisa Di-scroll */}
       <main className="flex-1 h-full p-6 md:p-10 overflow-y-auto bg-[#F0F5FA]">
         <div className="max-w-7xl mx-auto pb-10">
           {activeMenu === 'beranda' && (
