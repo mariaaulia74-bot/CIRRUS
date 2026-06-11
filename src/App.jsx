@@ -91,36 +91,12 @@ export default function App() {
     return <AuthView initialMode={currentView} onAuthSuccess={() => setCurrentView('dashboard')} onBackToLanding={() => setCurrentView('landing')} waktuSistem={waktuSistem} />;
   }
 
-  // 👍 KUNCI PERBAIKAN: Menggunakan pembungkus <> dan </> agar tidak bentrok
   return (
-    <>
-      <button 
-        onClick={async () => {
-          await supabase.auth.signOut();
-          localStorage.clear();
-          sessionStorage.clear();
-          alert("Sesi berhasil dibersihkan! Menuju Landing Page...");
-          window.location.reload();
-        }}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 9999,
-          background: '#E74C3C',
-          color: 'white',
-          padding: '15px 25px',
-          borderRadius: '10px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          border: 'none',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-        }}
-      >
-        ⚠️ KLIK INI UNTUK LOGOUT PAKSA
-      </button>
-
-      <div className="flex flex-col md:flex-row min-h-screen bg-[#F0F5FA] font-sans text-[#003366] relative">
+    // KUNCI UTAMA: md:h-screen mengunci tinggi layar agar aplikasi membagi area scroll dengan adil
+    <div className="flex flex-col md:flex-row md:h-screen w-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden">
+      
+      {/* 📌 SIDEBAR: Dipaku mati di kiri layar (md:sticky) dan tidak boleh mengecil (flex-shrink-0) */}
+      <aside className="md:sticky md:top-0 md:h-screen w-full md:w-72 flex-shrink-0 z-50 bg-[#E9F1F8]">
         <Sidebar 
           activeMenu={activeMenu} 
           setActiveMenu={setActiveMenu} 
@@ -131,16 +107,29 @@ export default function App() {
             setCurrentView('landing');
           }} 
         />
-        <main className="flex-1 min-w-0 p-6 md:p-10 bg-[#F0F5FA]">
-          <div className="max-w-7xl mx-auto">
-            {activeMenu === 'beranda' && <BerandaView currentLocation={currentLocation} openFilter={() => alert("Filter!")} liveWeather={liveWeather} aiSuggestion={aiSuggestion} isLoading={isLoading} tafsirkanKodeCuaca={tafsirkanKodeCuaca} waktuSistem={waktuSistem} />}
-            {activeMenu === 'kalender' && <KalenderView selectedDate={selectedDate} setSelectedDate={setSelectedDate} waktuSistem={waktuSistem} />}
-            {activeMenu === 'peta' && <PetaView waktuSistem={waktuSistem} />}
-            {activeMenu === 'kualitas udara' && <KualitasUdaraView />}
-            {activeMenu === 'setting' && <SettingView user={sessionUser} onProfileUpdate={(updatedUser) => setSessionUser(updatedUser)} />}
-          </div>
-        </main>
-      </div>
-    </>
+      </aside>
+
+      {/* 📌 AREA KONTEN UTAMA: Diberikan h-full dan overflow-y-auto agar HANYA area ini yang bisa digulir ke bawah */}
+      <main className="flex-1 h-full p-6 md:p-10 overflow-y-auto bg-[#F0F5FA]">
+        <div className="max-w-7xl mx-auto pb-10">
+          {activeMenu === 'beranda' && (
+            <BerandaView 
+              currentLocation={currentLocation} 
+              openFilter={() => alert("Filter!")} 
+              liveWeather={liveWeather} 
+              aiSuggestion={aiSuggestion} 
+              isLoading={isLoading} 
+              tafsirkanKodeCuaca={tafsirkanKodeCuaca} 
+              waktuSistem={waktuSistem} 
+            />
+          )}
+          {activeMenu === 'kalender' && <KalenderView selectedDate={selectedDate} setSelectedDate={setSelectedDate} waktuSistem={waktuSistem} />}
+          {activeMenu === 'peta' && <PetaView waktuSistem={waktuSistem} />}
+          {activeMenu === 'kualitas udara' && <KualitasUdaraView />}
+          {activeMenu === 'setting' && <SettingView user={sessionUser} onProfileUpdate={(updatedUser) => setSessionUser(updatedUser)} />}
+        </div>
+      </main>
+
+    </div>
   );
 }

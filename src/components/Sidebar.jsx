@@ -1,60 +1,84 @@
-import iconHome from '../assets/home.svg';
-import iconCalendar from '../assets/calendar.svg';
-import iconMap from '../assets/map.svg';
-import iconWind from '../assets/wind.svg';
-import iconSetting from '../assets/setting.svg';
-import iconLogout from '../assets/logout.svg';
-import avatarBahlil from '../assets/avatar-bahlil.svg';
+import React from 'react';
+import { 
+  HomeIcon, 
+  CalendarIcon, 
+  MapIcon, 
+  CloudIcon, 
+  CogIcon, 
+  LogOutIcon 
+} from 'lucide-react'; // Sesuaikan dengan library icon yang kalian pakai (Heroicons / Lucide)
 
-export default function Sidebar({ activeMenu, setActiveMenu, onLogout, user }) {
-  const namaDinamis = user?.user_metadata?.display_name || (user?.email ? user.email.split('@')[0] : 'User');
+export default function Sidebar({ activeMenu, setActiveMenu, user, onLogout }) {
+  
+  const menuItems = [
+    { id: 'beranda', name: 'BERANDA', icon: HomeIcon },
+    { id: 'kalender', name: 'KALENDER', icon: CalendarIcon },
+    { id: 'peta', name: 'PETA', icon: MapIcon },
+    { id: 'kualitas udara', name: 'KUALITAS UDARA', icon: CloudIcon },
+  ];
 
   return (
-    // KUNCI PERBAIKAN: Ditambahkan h-screen (tinggi penuh layar) dan overflow-y-auto agar jika layar kecil, sidebar bisa di-scroll dan tidak memotong bagian bawah
-    <aside className="w-72 h-screen bg-[#E9F1F8] flex flex-col justify-between py-8 px-6 border-r border-slate-200 shrink-0 z-50 overflow-y-auto no-scrollbar">
+    <div className="w-full md:w-72 h-full flex flex-col bg-[#E9F1F8] p-6 text-[#003366] font-sans justify-between">
       
-      {/* BAGIAN ATAS: AVATAR & NAMA */}
-      <div className="flex flex-col items-center mb-8 text-center shrink-0">
-        <div className="w-24 h-24 rounded-full mb-4 overflow-hidden border-4 border-white shadow-sm bg-white">
-          <img src={avatarBahlil} alt="Avatar" className="w-full h-full object-cover" />
-        </div>
-        <h3 className="font-black text-xl tracking-tight uppercase text-[#003366]">{namaDinamis}</h3>
-        <p className="text-[10px] opacity-40 uppercase font-black tracking-widest mt-1">Welcome!</p>
+      {/* Bagian Atas: Profil / Nama */}
+      <div className="text-center my-4 flex-shrink-0">
+        <h2 className="text-2xl font-black tracking-wider text-[#003366] uppercase">
+          {user?.user_metadata?.name || 'MARIA'}
+        </h2>
+        <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mt-1">WELCOME!</p>
       </div>
 
-      {/* BAGIAN TENGAH: NAVIGASI MENU (Ditambahkan space-y-2 agar lebih rapat dan tidak rakus ruang) */}
-      <nav className="flex-1 space-y-2 min-h-0 overflow-y-auto no-scrollbar mb-6">
-        <NavItem icon={iconHome} label="Beranda" active={activeMenu === 'beranda'} onClick={() => setActiveMenu('beranda')} />
-        <NavItem icon={iconCalendar} label="Kalender" active={activeMenu === 'kalender'} onClick={() => setActiveMenu('kalender')} />
-        <NavItem icon={iconMap} label="Peta" active={activeMenu === 'peta'} onClick={() => setActiveMenu('peta')} />
-        <NavItem icon={iconWind} label="Kualitas Udara" active={activeMenu === 'kualitas udara'} onClick={() => setActiveMenu('kualitas udara')} />
+      {/* 📌 PERBAIKAN UTAMA (Berdasarkan image_4a0e5b.png): Area Menu Utama */}
+      {/* Menghilangkan h-xxx atau overflow-y-auto pengganggu agar tidak muncul scrollbar internal */}
+      <nav className="flex-1 flex flex-col space-y-3 mt-6">
+        {menuItems.map((item) => {
+          const IconComponent = item.icon;
+          const isActive = activeMenu === item.id;
+          
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveMenu(item.id)}
+              className={`flex items-center space-x-4 w-full p-4 rounded-2xl font-black tracking-wider transition-all duration-300 text-left ${
+                isActive 
+                  ? 'bg-[#54A5F4] text-white shadow-lg shadow-blue-200' 
+                  : 'text-gray-400 hover:bg-gray-100 hover:text-[#003366]'
+              }`}
+            >
+              <IconComponent className="w-6 h-6 flex-shrink-0" />
+              <span className="text-sm uppercase">{item.name}</span>
+            </button>
+          );
+        })}
       </nav>
 
-      {/* BAGIAN BAWAH: TOMBOL SETTING & LOGOUT (Diberikan shrink-0 agar tidak bisa diperkecil atau dihilangkan oleh sistem) */}
-      <div className="space-y-5 pt-6 border-t border-slate-300/60 shrink-0 pb-2">
-        <button 
-          onClick={() => setActiveMenu('setting')}
-          className={`w-full flex items-center gap-5 px-4 font-bold text-sm transition cursor-pointer ${activeMenu === 'setting' ? 'text-blue-500 opacity-100 scale-105' : 'opacity-40 hover:opacity-100'}`}
-        >
-          <img src={iconSetting} alt="" className="w-6 h-6" /> Setting
-        </button>
+      {/* Bagian Bawah: Garis Pembatas, Setting, dan Log Out */}
+      <div className="mt-auto pt-6 border-t border-gray-200 flex-shrink-0 space-y-2">
         
-        <button 
-          onClick={onLogout}
-          className="w-full flex items-center gap-5 px-4 font-bold text-sm text-[#E74C3C] hover:scale-105 transition cursor-pointer bg-transparent border-none text-left"
+        {/* Tombol Setting */}
+        <button
+          onClick={() => setActiveMenu('setting')}
+          className={`flex items-center space-x-4 w-full p-4 rounded-2xl font-black tracking-wider transition-all ${
+            activeMenu === 'setting' 
+              ? 'bg-[#54A5F4] text-white' 
+              : 'text-gray-400 hover:bg-gray-100 hover:text-[#003366]'
+          }`}
         >
-          <img src={iconLogout} alt="" className="w-6 h-6" /> Log Out
+          <CogIcon className="w-6 h-6 flex-shrink-0" />
+          <span className="text-sm">Setting</span>
         </button>
-      </div>
-    </aside>
-  );
-}
 
-function NavItem({ icon, label, active = false, onClick }) {
-  return (
-    <div onClick={onClick} className={`flex items-center gap-5 px-6 py-3.5 rounded-2xl font-black transition cursor-pointer ${active ? 'bg-[#55ACEE] text-white shadow-xl shadow-blue-200' : 'text-[#003366] opacity-30 hover:opacity-100 hover:bg-white/40'}`}>
-      <img src={icon} alt="" className={`w-6 h-6 object-contain ${active ? 'brightness-0 invert' : ''}`} />
-      <span className="text-[10px] uppercase tracking-widest">{label}</span>
+        {/* Tombol Log Out Asli (Tombol Darurat Luar Sudah Hilang) */}
+        <button
+          onClick={onLogout}
+          className="flex items-center space-x-4 w-full p-4 rounded-2xl font-black tracking-wider text-red-500 hover:bg-red-50 transition-all text-left"
+        >
+          <LogOutIcon className="w-6 h-6 flex-shrink-0" />
+          <span className="text-sm">Log Out</span>
+        </button>
+
+      </div>
+
     </div>
   );
 }
