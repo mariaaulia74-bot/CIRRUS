@@ -1,42 +1,46 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * Fungsi untuk meminta rekomendasi aktivitas ke gemini berdasarkan data cuaca CIRRUS
  * @param {Object} dataCuaca - Objek data cuaca dari weatherService
  */
 export const getAIOpinion = async (dataCuaca) => {
-    // KUNCI KEAMANAN 1: Ambil API Key di dalam fungsi agar tidak crash saat rendering awal
-    const apiKeyGemini = import.meta.env.VITE_GEMINI_API_KEY;
+    // AMAN: Membaca API Key dari environment variable Vite, tidak di-hardcode lagi
+    const apiKeyGemini = import.meta.env.VITE_GEMINI_API_KEY; 
     
     if (!apiKeyGemini) {
-        console.warn("VITE_GEMINI_API_KEY tidak ditemukan di .env");
-        return null; // Kembalikan null agar App.jsx tahu harus memakai teks cadangan lokal
+        console.warn("VITE_GEMINI_API_KEY tidak ditemukan di environment variable.");
+        return null; 
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey: apiKeyGemini });
+        // Mengonfigurasi SDK menggunakan custom headers agar mendukung format kunci 'AQ.'
+        const genAI = new GoogleGenerativeAI(apiKeyGemini, {
+            apiHeader: {
+                "Authorization": `Bearer ${apiKeyGemini}`,
+                "x-goog-api-key": apiKeyGemini
+            }
+        });
         
-        // Menyusun teks perintah (prompt) otomatis berdasarkan data cuaca asli
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        
         const promptText = `
         Kamu adalah asisten cuaca pintar untuk aplikasi CIRRUS di Kalimantan.
         Berikan rekomendasi aktivitas singkat (maksimal 3 kalimat) berbentuk notifikasi/saran yang santai, logis, dan ramah untuk user berdasarkan data berikut:
-        - Kota : ${dataCuaca.kota}
-        - Suhu : ${dataCuaca.suhu}
-        - Kelembapan : ${dataCuaca.kelembapan}
-        - Kecepatan Angin : ${dataCuaca.kecepatanAngin}
+        - Kota : ${dataCuaca?.kota || 'Banjarmasin'}
+        - Suhu : ${dataCuaca?.suhu || '29°'}
+        - Kelembapan : ${dataCuaca?.kelembapan || '95%'}
+        - Kecepatan Angin : ${dataCuaca?.kecepatanAngin || '5 km/h'}
         `;
         
-        // Menggunakan Gemini 2.0 Flash
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash', 
-            contents: promptText,
-        });
-            
+        const result = await model.generateContent(promptText);
+        const response = await result.response;
+        
         return response.text();
 
     } catch (error) {
-        // KUNCI KEAMANAN 2: Tangkap error 429 secara damai tanpa merusak alur data cuaca utama
-        console.warn('Gemini AI sedang membatasi limit kuota (429). Sistem beralih ke teks alternatif.');
+        console.error("Detail Error Gemini Terbaru:", error);
+        console.warn('Gemini AI sedang membatasi limit kuota (429) atau error parameter. Sistem beralih ke teks alternatif.');
         return null; 
     }
 };
