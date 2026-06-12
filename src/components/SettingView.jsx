@@ -8,22 +8,22 @@ export default function SettingView({ user, onProfileUpdate }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Memuat data user saat awal halaman dibuka
+  {/* 📌 FIX: Memuat nama awal berdasarkan beberapa kemungkinan key metadata Supabase */}
   useEffect(() => {
     if (user) {
-      setName(user.user_metadata?.name || '');
+      setName(user.user_metadata?.name || user.user_metadata?.full_name || user.user_metadata?.nama_lengkap || '');
       setEmail(user.email || '');
     }
   }, [user]);
 
-  // 📌 FUNGSI UTAMA: Menyimpan perubahan nama ke Supabase dan memperbarui Sidebar
+  // Fungsi untuk menyimpan perubahan nama ke Supabase Auth
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
     setMessage({ type: '', text: '' });
 
     try {
-      // 1. Kirim pembaruan data ke database Supabase Auth
+      // Kirim pembaruan data ke database Supabase Auth
       const { data, error } = await supabase.auth.updateUser({
         data: { name: name }
       });
@@ -33,7 +33,7 @@ export default function SettingView({ user, onProfileUpdate }) {
       if (data && data.user) {
         setMessage({ type: 'success', text: 'Profil berhasil diperbarui!' });
         
-        // 📌 KUNCI UTAMA: Memicu App.jsx agar memperbarui state nama di Sidebar secara real-time!
+        // Memicu App.jsx agar memperbarui state nama di Sidebar secara real-time!
         if (typeof onProfileUpdate === 'function') {
           onProfileUpdate(data.user);
         }
@@ -80,7 +80,7 @@ export default function SettingView({ user, onProfileUpdate }) {
           </div>
         </div>
 
-        {/* Input Email (Disabled karena email biasanya dikunci/memerlukan verifikasi ulang) */}
+        {/* Input Email */}
         <div className="space-y-2">
           <label className="text-xs font-black tracking-widest text-gray-400 uppercase block">
             Alamat Email

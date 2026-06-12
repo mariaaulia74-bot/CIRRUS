@@ -19,7 +19,6 @@ export default function Sidebar({ activeMenu, setActiveMenu, user, onLogout }) {
   ];
 
   return (
-    // 📌 FIX: Menggunakan md:h-screen, p-4 (diperkecil agar muat), dan overflow-hidden agar pas di satu layar penuh
     <div className="w-full md:w-72 md:h-screen flex flex-col bg-[#E9F1F8] p-4 text-[#003366] font-sans justify-between overflow-hidden flex-shrink-0 box-border">
       
       {/* Bagian Atas: Avatar & Nama */}
@@ -37,13 +36,18 @@ export default function Sidebar({ activeMenu, setActiveMenu, user, onLogout }) {
           )}
         </div>
 
+        {/* 📌 FIX: Membaca semua kemungkinan key nama dari Supabase secara fleksibel */}
         <h2 className="text-xl font-black tracking-wider text-[#003366] uppercase">
-          {user?.user_metadata?.name || 'MARIA'}
+          {user?.user_metadata?.name || 
+           user?.user_metadata?.full_name || 
+           user?.user_metadata?.nama_lengkap || 
+           user?.email?.split('@')[0] || 
+           'USER'}
         </h2>
         <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mt-0.5">WELCOME!</p>
       </div>
 
-      {/* 📌 FIX: Menggunakan space-y-1 dan p-3 agar menu naik ke atas dan TIDAK AMBLES lagi */}
+      {/* Navigasi Menu */}
       <nav className="flex-1 flex flex-col space-y-1 mt-2 overflow-hidden">
         {menuItems.map((item) => {
           const IconComponent = item.icon;
@@ -66,7 +70,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, user, onLogout }) {
         })}
       </nav>
 
-      {/* Bagian Bawah: Setting dan Log Out (Dinaikkan sedikit jalurnya) */}
+      {/* Bagian Bawah: Setting dan Log Out */}
       <div className="mt-auto pt-2 border-t border-gray-200 flex-shrink-0 space-y-1">
         
         <button

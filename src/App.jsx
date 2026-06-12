@@ -22,11 +22,13 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
   
+  // Sinkronisasi waktu sistem
   useEffect(() => {
     const timer = setInterval(() => { setWaktuSistem(new Date()); }, 60000);
     return () => clearInterval(timer);
   }, []);
 
+  // Manajemen Autentikasi Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -63,27 +65,47 @@ export default function App() {
     return 'Cerah Berawan';
   };
 
+  // 📌 PERBAIKAN UTAMA: Manajemen Pengambilan Data Cuaca & AI Tanpa Infinite Loop
   useEffect(() => {
     if (currentView !== 'dashboard') return;
+    
     const muatDataDinamis = async () => {
       const dataFallback = { suhu: '29°', kodeCuaca: 61, kecepatanAngin: '5.5 km/h', kelembapan: '85%' };
+      
       try {
         setIsLoading(true);
+        
         if (typeof fetchWeatherByCity === 'function') {
           const dataAsli = await fetchWeatherByCity(currentLocation);
           setLiveWeather(dataAsli);
+          
           if (typeof getAIOpinion === 'function') {
-            const hasilAI = await getAIOpinion({ kota: currentLocation, suhu: dataAsli.suhu, kelembapan: dataAsli.kelembapan, keindexAngin: dataAsli.kecepatanAngin });
-            if (hasilAI) setAiSuggestion(hasilAI);
-            else setLiveWeather(dataFallback);
+            const hasilAI = await getAIOpinion({ 
+              kota: currentLocation, 
+              suhu: dataAsli.suhu, 
+              kelembapan: dataAsli.kelembapan, 
+              keindexAngin: dataAsli.kecepatanAngin 
+            });
+            
+            if (hasilAI) {
+              setAiSuggestion(hasilAI);
+            } else {
+              // Jika Gemini gagal/limit, jangan ubah state liveWeather lagi biar tidak loop.
+              setAiSuggestion('Gemini AI sedang membatasi limit kuota (429). Sistem beralih ke teks alternatif.');
+            }
           }
         }
       } catch (error) {
+        console.error("Gagal mengambil data dari stasiun cuaca asli:", error);
         setLiveWeather(dataFallback);
-      } finally { setIsLoading(false); }
+        setAiSuggestion('API Cuaca Bermasalah, Mengaktifkan Data Cadangan Offline.');
+      } finally { 
+        setIsLoading(false); 
+      }
     };
+    
     muatDataDinamis();
-  }, [currentLocation, currentView]);
+  }, [currentLocation, currentView]); // Berjalan terkontrol hanya jika lokasi atau view berubah
 
   if (currentView === 'landing') return <LandingPage onNavigate={setCurrentView} user={sessionUser} />;
   if (currentView === 'login' || currentView === 'signup') {
@@ -91,10 +113,9 @@ export default function App() {
   }
 
   return (
-    // 📌 FIXED BERSAMA: Mengunci layar dashboard total agar pembagian scroll adil
     <div className="flex flex-col md:flex-row md:h-screen w-screen bg-[#F0F5FA] font-sans text-[#003366] overflow-hidden">
       
-      {/* Sidebar Menetap */}
+      {/* Sidebar */}
       <aside className="md:sticky md:top-0 md:h-screen w-full md:w-72 flex-shrink-0 z-50 bg-[#E9F1F8]">
         <Sidebar 
           activeMenu={activeMenu} 
@@ -108,7 +129,7 @@ export default function App() {
         />
       </aside>
 
-      {/* Konten Utama Kanan yang Bisa Di-scroll */}
+      {/* Konten Utama Kanan */}
       <main className="flex-1 h-full p-6 md:p-10 overflow-y-auto bg-[#F0F5FA]">
         <div className="max-w-7xl mx-auto pb-10">
           {activeMenu === 'beranda' && (
