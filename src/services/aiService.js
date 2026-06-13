@@ -5,16 +5,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
  * @param {Object} dataCuaca - Objek data cuaca dari weatherService
  */
 export const getAIOpinion = async (dataCuaca) => {
-    // AMAN: Membaca API Key dari environment variable Vite, tidak di-hardcode lagi
+    // Membaca API Key format AQ. secara aman dari file .env
     const apiKeyGemini = import.meta.env.VITE_GEMINI_API_KEY; 
     
     if (!apiKeyGemini) {
-        console.warn("VITE_GEMINI_API_KEY tidak ditemukan di environment variable.");
+        console.warn("VITE_GEMINI_API_KEY tidak ditemukan");
         return null; 
     }
 
     try {
-        // Mengonfigurasi SDK menggunakan custom headers agar mendukung format kunci 'AQ.'
+        // Konfigurasi khusus Header agar Google mengenali kunci format AQ. di browser
         const genAI = new GoogleGenerativeAI(apiKeyGemini, {
             apiHeader: {
                 "Authorization": `Bearer ${apiKeyGemini}`,
